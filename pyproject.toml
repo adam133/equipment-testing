@@ -1,14 +1,14 @@
 [project]
 name = "equipment-testing"
 version = "0.1.0"
-description = "A Python application for equipment testing"
+description = "OpenAg-DB: Public, community-driven agricultural equipment database"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "Equipment Testing Team", email = "team@example.com" }
 ]
-keywords = ["equipment", "testing", "automation"]
+keywords = ["agriculture", "equipment", "database", "farming", "tractors", "combines"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -17,7 +17,13 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = []
+dependencies = [
+    "pydantic>=2.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "scrapy>=2.11.0",
+    "httpx>=0.25.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/adam133/equipment-testing"
@@ -27,6 +33,7 @@ Issues = "https://github.com/adam133/equipment-testing/issues"
 
 [project.scripts]
 equipment-testing = "equipment_testing.__main__:main"
+openagdb-api = "api.main:main"
 
 [project.optional-dependencies]
 dev = [
@@ -35,6 +42,16 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5.0",
     "pre-commit>=3.5.0",
+]
+# Optional dependencies for full Iceberg support
+iceberg = [
+    "pyiceberg>=0.5.0",
+    "duckdb>=0.9.0",
+]
+# Optional dependencies for advanced scraping
+scraping = [
+    "scrapy-playwright>=0.0.34",
+    "playwright>=1.40.0",
 ]
 
 [build-system]
@@ -78,6 +95,7 @@ line-ending = "auto"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"src/api/*.py" = ["B008"]  # FastAPI Query() in defaults is intentional
 
 [tool.mypy]
 python_version = "3.12"
