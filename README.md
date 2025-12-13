@@ -108,7 +108,7 @@ npm run build
 
 - Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer
-- Node.js 18+ (for frontend development)
+- Node.js 22+ (for frontend development)
 - AWS credentials (for S3 Tables access in production) - See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md)
 
 ## Installation
