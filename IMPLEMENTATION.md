@@ -185,9 +185,11 @@ The application supports the following environment variables:
 |----------|-------------|---------|
 | `ENVIRONMENT` | Runtime environment | (none) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:3000,http://localhost:5173` |
-| `AWS_ACCESS_KEY_ID` | AWS credentials for S3 | (none) |
-| `AWS_SECRET_ACCESS_KEY` | AWS credentials for S3 | (none) |
-| `AWS_DEFAULT_REGION` | AWS region | `us-east-1` |
+| `AWS_REGION` | AWS region | `us-east-1` |
+| `S3_DATALAKE_BUCKET` | S3 bucket for Iceberg tables | (none) |
+| `S3_ARTIFACTS_BUCKET` | S3 bucket for scraper artifacts | (none) |
+
+**Note**: AWS credentials are managed via OIDC in production. See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md) for details.
 
 ## Usage Examples
 

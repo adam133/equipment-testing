@@ -420,7 +420,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Resources
 
-- [AWS Configuration Guide](AWS_CONFIGURATION.md) - AWS infrastructure setup and security best practices
+- [AWS Quick Start Guide](AWS_QUICKSTART.md) - Fast setup for AWS infrastructure
+- [AWS Configuration Guide](AWS_CONFIGURATION.md) - Comprehensive AWS setup and security best practices
 - [Terraform Examples](terraform/README.md) - Infrastructure-as-code templates
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [Python Packaging Guide](https://packaging.python.org/)
