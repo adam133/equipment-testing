@@ -244,7 +244,7 @@ variable "github_repo" {
 }
 
 data "tls_certificate" "github_actions" {
-  url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+  url = "https://token.actions.githubusercontent.com"
 }
 
 resource "aws_iam_openid_connect_provider" "github_actions" {

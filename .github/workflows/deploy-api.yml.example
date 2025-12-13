@@ -50,7 +50,8 @@ jobs:
           cp -r src/api lambda-package/
           cp -r src/core lambda-package/
           # Install dependencies to package directory
-          uv pip install --target lambda-package -r <(uv pip freeze)
+          uv pip freeze > requirements.txt
+          uv pip install --target lambda-package -r requirements.txt
           # Create deployment package
           cd lambda-package
           zip -r ../openagdb-api.zip .
@@ -66,12 +67,12 @@ jobs:
         run: |
           aws lambda update-function-configuration \
             --function-name openagdb-api \
-            --environment "Variables={
-              ENVIRONMENT=production,
-              S3_DATALAKE_BUCKET=${{ secrets.S3_DATALAKE_BUCKET }},
-              AWS_REGION=${{ secrets.AWS_REGION }},
-              ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
-            }"
+            --environment 'Variables={
+              "ENVIRONMENT":"production",
+              "S3_DATALAKE_BUCKET":"${{ secrets.S3_DATALAKE_BUCKET }}",
+              "AWS_REGION":"${{ secrets.AWS_REGION }}",
+              "ALLOWED_ORIGINS":"${{ vars.ALLOWED_ORIGINS }}"
+            }'
 
       - name: Publish new version
         run: |
