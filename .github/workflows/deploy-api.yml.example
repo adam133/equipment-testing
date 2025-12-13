@@ -50,8 +50,8 @@ jobs:
           cp -r src/api lambda-package/
           cp -r src/core lambda-package/
           # Install dependencies to package directory
-          uv pip freeze > requirements.txt
-          uv pip install --target lambda-package -r requirements.txt
+          uv export --no-hashes > requirements.txt
+          pip install --target lambda-package -r requirements.txt
           # Create deployment package
           cd lambda-package
           zip -r ../openagdb-api.zip .
@@ -59,15 +59,31 @@ jobs:
 
       - name: Deploy to Lambda
         run: |
+          # Check if function exists, otherwise provide helpful error
+          if ! aws lambda get-function --function-name openagdb-api &>/dev/null; then
+            echo "Error: Lambda function 'openagdb-api' does not exist."
+            echo "Please create the function first using 'aws lambda create-function' or the AWS Console."
+            exit 1
+          fi
           aws lambda update-function-code \
             --function-name openagdb-api \
             --zip-file fileb://openagdb-api.zip
 
       - name: Update Lambda environment variables
         run: |
+          cat > lambda-env.json <<EOF
+          {
+            "Variables": {
+              "ENVIRONMENT": "production",
+              "S3_DATALAKE_BUCKET": "${{ secrets.S3_DATALAKE_BUCKET }}",
+              "AWS_REGION": "${{ secrets.AWS_REGION }}",
+              "ALLOWED_ORIGINS": "${{ vars.ALLOWED_ORIGINS }}"
+            }
+          }
+          EOF
           aws lambda update-function-configuration \
             --function-name openagdb-api \
-            --environment Variables="{ENVIRONMENT=production,S3_DATALAKE_BUCKET=${{ secrets.S3_DATALAKE_BUCKET }},AWS_REGION=${{ secrets.AWS_REGION }},ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}}"
+            --environment file://lambda-env.json
 
       - name: Publish new version
         run: |
@@ -86,7 +102,13 @@ jobs:
             --function-name openagdb-api \
             --query 'FunctionUrl' \
             --output text)
-          curl -f "${FUNCTION_URL}health" || exit 1
+          # Ensure exactly one slash before 'health'
+          if [[ "${FUNCTION_URL}" == */ ]]; then
+            HEALTH_URL="${FUNCTION_URL}health"
+          else
+            HEALTH_URL="${FUNCTION_URL}/health"
+          fi
+          curl -f "${HEALTH_URL}" || exit 1
 
       - name: Deployment summary
         run: |

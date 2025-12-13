@@ -388,7 +388,7 @@ openagdb-frontend-<environment>
         "cloudfront:CreateInvalidation",
         "cloudfront:GetInvalidation"
       ],
-      "Resource": "*",
+      "Resource": "arn:aws:cloudfront::<AWS_ACCOUNT_ID>:distribution/openagdb-*",
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/Project": "OpenAgDB"
@@ -412,6 +412,7 @@ Configure the following secrets in your GitHub repository (`Settings` → `Secre
 | `AWS_ACCOUNT_ID` | Your AWS account ID | `123456789012` |
 | `AWS_REGION` | Primary AWS region | `us-east-1` |
 | `AWS_DEPLOYMENT_ROLE_ARN` | ARN of GitHub Actions OIDC role | `arn:aws:iam::123456789012:role/GitHubActionsDeploymentRole-OpenAgDB` |
+| `AWS_SCRAPER_ROLE_ARN` | ARN of scraper execution role | `arn:aws:iam::123456789012:role/OpenAgDB-ScraperRole` |
 | `S3_DATALAKE_BUCKET` | Data lake bucket name | `openagdb-datalake-prod-us-east-1` |
 | `S3_ARTIFACTS_BUCKET` | Artifacts bucket name | `openagdb-artifacts-prod-us-east-1` |
 | `S3_FRONTEND_BUCKET` | Frontend bucket name (if applicable) | `openagdb-frontend-prod` |
@@ -471,7 +472,7 @@ These can be set as GitHub variables (not secrets) as they are not sensitive:
       "Resource": "arn:aws:s3:::openagdb-datalake-prod-us-east-1/*",
       "Condition": {
         "StringNotEquals": {
-          "s3:x-amz-server-side-encryption": "AES256"
+          "s3:x-amz-server-side-encryption": ["AES256", "aws:kms"]
         }
       }
     }

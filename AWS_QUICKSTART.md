@@ -18,6 +18,9 @@ This guide provides a quick overview of setting up AWS infrastructure for OpenAg
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Create OIDC provider for GitHub Actions
+# Note: The thumbprint value below is current as of this documentation.
+# GitHub may rotate their SSL certificates, which would require updating this value.
+# For dynamic thumbprint retrieval, see the Terraform examples using the tls_certificate data source.
 aws iam create-open-id-connect-provider \
   --url https://token.actions.githubusercontent.com \
   --client-id-list sts.amazonaws.com \
@@ -76,6 +79,7 @@ See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md) for complete trust and permissi
 gh secret set AWS_ACCOUNT_ID --body "${AWS_ACCOUNT_ID}"
 gh secret set AWS_REGION --body "us-east-1"
 gh secret set AWS_DEPLOYMENT_ROLE_ARN --body "arn:aws:iam::${AWS_ACCOUNT_ID}:role/GitHubActionsDeploymentRole-OpenAgDB"
+gh secret set AWS_SCRAPER_ROLE_ARN --body "arn:aws:iam::${AWS_ACCOUNT_ID}:role/OpenAgDB-ScraperRole"
 gh secret set S3_DATALAKE_BUCKET --body "openagdb-datalake-${ENVIRONMENT}-${AWS_REGION}"
 gh secret set S3_ARTIFACTS_BUCKET --body "openagdb-artifacts-${ENVIRONMENT}-${AWS_REGION}"
 ```
@@ -120,6 +124,7 @@ terraform apply -var-file="environments/prod/terraform.tfvars"
 | `AWS_ACCOUNT_ID` | Your AWS account ID | `123456789012` |
 | `AWS_REGION` | Primary AWS region | `us-east-1` |
 | `AWS_DEPLOYMENT_ROLE_ARN` | ARN of deployment role | `arn:aws:iam::123456789012:role/GitHubActionsDeploymentRole-OpenAgDB` |
+| `AWS_SCRAPER_ROLE_ARN` | ARN of scraper role | `arn:aws:iam::123456789012:role/OpenAgDB-ScraperRole` |
 | `S3_DATALAKE_BUCKET` | Data lake bucket name | `openagdb-datalake-prod-us-east-1` |
 | `S3_ARTIFACTS_BUCKET` | Artifacts bucket name | `openagdb-artifacts-prod-us-east-1` |
 

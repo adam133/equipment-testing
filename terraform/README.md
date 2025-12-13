@@ -307,6 +307,8 @@ data "aws_caller_identity" "current" {}
 # GitHub Actions Deployment Role
 resource "aws_iam_role" "github_actions" {
   name        = "GitHubActionsDeploymentRole-OpenAgDB-${var.environment}"
+  # Note: The role name includes the environment suffix (e.g., "GitHubActionsDeploymentRole-OpenAgDB-prod")
+  # This differs from AWS_CONFIGURATION.md which shows a generic name without the suffix
   description = "Role for GitHub Actions to deploy OpenAgDB infrastructure"
 
   assume_role_policy = jsonencode({
@@ -530,6 +532,9 @@ terraform {
   required_version = ">= 1.5.0"
 
   backend "s3" {
+    # Note: Customize these values for your environment
+    # For multiple environments, use unique bucket names or workspace-specific keys
+    # Example: key = "${terraform.workspace}/infrastructure/terraform.tfstate"
     bucket         = "openagdb-terraform-state"
     key            = "infrastructure/terraform.tfstate"
     region         = "us-east-1"
@@ -705,6 +710,12 @@ aws dynamodb create-table \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \
   --region us-east-1
+
+# Enable point-in-time recovery (PITR) for the lock table
+aws dynamodb update-continuous-backups \
+  --table-name openagdb-terraform-locks \
+  --point-in-time-recovery-specification PointInTimeRecoveryEnabled=true \
+  --region us-east-1
 ```
 
 ### 2. Deploy Infrastructure
@@ -716,6 +727,8 @@ terraform plan -var-file="environments/prod/terraform.tfvars"
 terraform apply -var-file="environments/prod/terraform.tfvars"
 
 # Development
+# Note: When using workspaces, consider using workspace-specific state keys in the backend configuration
+# to avoid state conflicts. See backend configuration comments above.
 terraform workspace new dev
 terraform plan -var-file="environments/dev/terraform.tfvars"
 terraform apply -var-file="environments/dev/terraform.tfvars"

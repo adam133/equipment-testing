@@ -32,7 +32,7 @@ jobs:
     - name: Configure AWS credentials using OIDC
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: ${{ secrets.AWS_DEPLOYMENT_ROLE_ARN }}
+        role-to-assume: ${{ secrets.AWS_SCRAPER_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
         role-session-name: GitHubActions-OpenAgDB-Scraper
 
@@ -50,7 +50,7 @@ jobs:
 
     - name: Run scrapers
       env:
-        # S3 bucket for data storage
+        # S3 buckets for data storage and artifacts
         S3_DATALAKE_BUCKET: ${{ secrets.S3_DATALAKE_BUCKET }}
         S3_ARTIFACTS_BUCKET: ${{ secrets.S3_ARTIFACTS_BUCKET }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
