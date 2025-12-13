@@ -4,6 +4,7 @@ This API serves agricultural equipment data from Iceberg tables
 and provides endpoints for user contributions.
 """
 
+import os
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -28,11 +29,20 @@ app = FastAPI(
 )
 
 # Configure CORS for frontend access
+# In development, allow all origins. In production, restrict to specific domains.
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+).split(",")
+
+# Allow all origins only in development mode
+if os.getenv("ENVIRONMENT") == "development":
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -87,9 +97,7 @@ async def health_check() -> HealthResponse:
 
 @app.get("/equipment", response_model=list[CommonEquipment])
 async def list_equipment(
-    category: EquipmentCategory | None = Query(
-        None, description="Filter by category"
-    ),
+    category: EquipmentCategory | None = Query(None, description="Filter by category"),
     make: str | None = Query(None, description="Filter by manufacturer"),
     model: str | None = Query(None, description="Filter by model"),
     year_min: int | None = Query(None, description="Minimum year"),
@@ -150,9 +158,7 @@ async def list_tractors(
 @app.get("/equipment/combines", response_model=list[Combine])
 async def list_combines(
     make: str | None = Query(None),
-    tank_capacity_min: float | None = Query(
-        None, description="Minimum tank capacity"
-    ),
+    tank_capacity_min: float | None = Query(None, description="Minimum tank capacity"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[Combine]:

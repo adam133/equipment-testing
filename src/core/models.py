@@ -92,20 +92,14 @@ class Tractor(CommonEquipment):
     # Power specifications
     pto_hp: float | None = Field(None, description="Power Take-Off horsepower", ge=0)
     engine_hp: float | None = Field(None, description="Engine horsepower", ge=0)
-    rated_rpm: int | None = Field(
-        None, description="Rated engine RPM", ge=0, le=10000
-    )
+    rated_rpm: int | None = Field(None, description="Rated engine RPM", ge=0, le=10000)
 
     # Transmission
     transmission_type: TransmissionType | None = Field(
         None, description="Type of transmission"
     )
-    forward_gears: int | None = Field(
-        None, description="Number of forward gears", ge=0
-    )
-    reverse_gears: int | None = Field(
-        None, description="Number of reverse gears", ge=0
-    )
+    forward_gears: int | None = Field(None, description="Number of forward gears", ge=0)
+    reverse_gears: int | None = Field(None, description="Number of reverse gears", ge=0)
 
     # Hydraulics
     hydraulic_flow: float | None = Field(
@@ -119,9 +113,7 @@ class Tractor(CommonEquipment):
     )
 
     # Physical specifications
-    weight_lbs: float | None = Field(
-        None, description="Operating weight in lbs", ge=0
-    )
+    weight_lbs: float | None = Field(None, description="Operating weight in lbs", ge=0)
     wheelbase_inches: float | None = Field(
         None, description="Wheelbase length in inches", ge=0
     )
@@ -166,9 +158,7 @@ class Combine(CommonEquipment):
     )
 
     # Physical specifications
-    weight_lbs: float | None = Field(
-        None, description="Operating weight in lbs", ge=0
-    )
+    weight_lbs: float | None = Field(None, description="Operating weight in lbs", ge=0)
 
 
 class Implement(CommonEquipment):
@@ -207,9 +197,18 @@ class Implement(CommonEquipment):
         None, description="Row spacing in inches", ge=0
     )
 
+    @field_validator("required_hp_max")
+    @classmethod
+    def validate_hp_range(cls, v: float | None, info) -> float | None:
+        """Validate that required_hp_max is not less than required_hp_min."""
+        if v is not None and info.data.get("required_hp_min") is not None:
+            if v < info.data["required_hp_min"]:
+                raise ValueError("required_hp_max must be >= required_hp_min")
+        return v
+
 
 # Union type for all equipment types
-Equipment = Tractor | Combine | Implement
+Equipment = Tractor | Combine | Implement | CommonEquipment
 
 
 def create_equipment(data: dict) -> Equipment:
@@ -219,10 +218,11 @@ def create_equipment(data: dict) -> Equipment:
         data: Dictionary containing equipment data with a 'category' field
 
     Returns:
-        Instantiated equipment model (Tractor, Combine, or Implement)
+        Instantiated equipment model (Tractor, Combine, Implement, or CommonEquipment)
 
-    Raises:
-        ValueError: If category is not recognized or supported
+    Note:
+        For categories other than tractor, combine, or implement,
+        returns a CommonEquipment instance.
     """
     category = data.get("category")
 
@@ -233,5 +233,6 @@ def create_equipment(data: dict) -> Equipment:
     elif category == EquipmentCategory.IMPLEMENT:
         return Implement(**data)
     else:
-        # Default to CommonEquipment for other categories
+        # For other categories (harvester, planter, sprayer, etc.),
+        # use CommonEquipment base model
         return CommonEquipment(**data)

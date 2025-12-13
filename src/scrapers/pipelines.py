@@ -5,7 +5,6 @@ Pipelines:
 2. IcebergWriterPipeline - Writes validated data to Iceberg tables
 """
 
-
 from pydantic import ValidationError
 from scrapy import Spider
 from scrapy.exceptions import DropItem

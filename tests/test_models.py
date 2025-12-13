@@ -125,6 +125,17 @@ def test_implement_creation():
     assert implement.row_spacing_inches == 30
 
 
+def test_invalid_hp_range():
+    """Test that required_hp_max cannot be less than required_hp_min."""
+    with pytest.raises(ValidationError):
+        Implement(
+            make="Test",
+            model="Model",
+            required_hp_min=300,
+            required_hp_max=200,
+        )
+
+
 def test_create_equipment_tractor():
     """Test create_equipment factory function for tractor."""
     data = {
