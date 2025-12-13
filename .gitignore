@@ -65,6 +65,9 @@ instance/
 
 # Scrapy stuff:
 .scrapy
+httpcache/
+*.json
+*.jsonl
 
 # Sphinx documentation
 docs/_build/

@@ -1,0 +1,64 @@
+name: Equipment Scraper
+
+on:
+  # Run weekly on Sundays at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * 0'
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      spider_name:
+        description: 'Spider to run (leave empty for all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    name: Run Equipment Scrapers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install dependencies
+      run: |
+        uv sync --all-extras
+
+    - name: Run scrapers
+      env:
+        # AWS credentials for S3 Tables access (set in GitHub Secrets)
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
+      run: |
+        if [ -z "${{ github.event.inputs.spider_name }}" ]; then
+          echo "Running all spiders..."
+          # Run all spiders (placeholder - would iterate through actual spiders)
+          # uv run scrapy crawl tractordata
+        else
+          echo "Running spider: ${{ github.event.inputs.spider_name }}"
+          # uv run scrapy crawl ${{ github.event.inputs.spider_name }}
+        fi
+
+    - name: Upload scraper logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scraper-logs
+        path: |
+          *.log
+          scrapy_*.json
+        retention-days: 7

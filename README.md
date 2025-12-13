@@ -1,25 +1,77 @@
-# Equipment Testing
+# OpenAg-DB: Open Agricultural Equipment Database
 
 [![CI](https://github.com/adam133/equipment-testing/workflows/CI/badge.svg)](https://github.com/adam133/equipment-testing/actions)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Python application for equipment testing, built with [uv](https://github.com/astral-sh/uv) - a fast Python package installer and resolver.
+A public, community-driven agricultural equipment database using a Python-centric stack and Lakehouse architecture. OpenAg-DB provides comprehensive specifications for tractors, combines, implements, and other agricultural equipment.
 
-## About
+## 🌾 About
 
-This application provides tools and utilities for testing equipment. Built using modern Python development practices with `uv` for fast and reliable dependency management.
+OpenAg-DB is designed to be the go-to resource for agricultural equipment specifications, built on modern data infrastructure:
+
+- **Data Model**: Pydantic models with polymorphic support for different equipment types
+- **Storage**: Apache Iceberg v2 tables on AWS S3 for versioned, queryable data
+- **API**: FastAPI backend with DuckDB for fast serverless analytics
+- **Scrapers**: Polite, scheduled Scrapy spiders for data collection
+- **Frontend**: React + Vite + Shadcn UI for searchable interface
+- **Community**: Open-source contribution model via GitHub
+
+## 🏗️ Architecture
+
+```
+OpenAg-DB/
+├── src/
+│   ├── api/           # FastAPI backend (AWS Lambda compatible)
+│   ├── scrapers/      # Scrapy spiders for data collection
+│   ├── core/          # Pydantic models & Iceberg utilities
+│   └── frontend/      # React/Vite static site
+├── .github/workflows/ # CI/CD and scheduled scrapers
+└── tests/            # Pytest test suite
+```
+
+### Data Flow
+
+1. **Collection**: Scrapy spiders collect equipment data from manufacturer websites
+2. **Validation**: All data validated against Pydantic models
+3. **Storage**: Data written to Iceberg tables in S3
+4. **Query**: FastAPI + DuckDB serve data to frontend
+5. **Contribution**: Users suggest corrections via GitHub Issues
+
+## 📊 Equipment Types
+
+OpenAg-DB supports multiple equipment categories with specialized models:
+
+### Tractors
+- Horsepower (PTO/Engine)
+- Transmission Type
+- Hydraulic Flow & Pressure
+- Three-Point Hitch Specifications
+
+### Combines
+- Grain Tank Capacity
+- Separator Type (Conventional/Rotary/Hybrid)
+- Unloading Rate
+- Engine Specifications
+
+### Implements
+- Working Width
+- Weight
+- Required HP Range
+- Row Configuration (for planters/cultivators)
 
 ## Prerequisites
 
 - Python 3.12 or higher
-- uv (Python package installer)
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer
+- Node.js 18+ (for frontend development)
+- AWS credentials (for S3 Tables access in production)
 
 ## Installation
 
 ### Install uv
 
-If you don't have `uv` installed, you can install it using one of the following methods:
+If you don't have `uv` installed:
 
 **On macOS and Linux:**
 ```bash
@@ -31,50 +83,60 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-**Via pip:**
-```bash
-pip install uv
-```
-
 ### Install Project Dependencies
 
-Once you have `uv` installed, you can install the project dependencies:
-
 ```bash
-# Sync dependencies from pyproject.toml
+# Clone the repository
+git clone https://github.com/adam133/equipment-testing.git
+cd equipment-testing
+
+# Sync Python dependencies
 uv sync
+
+# For development with all optional dependencies
+uv sync --all-extras
 ```
 
 ## Usage
 
-### Running the Application
+### Running the API Server
 
 ```bash
-# Activate the virtual environment
-source .venv/bin/activate  # On Unix/macOS
-# or
-.venv\Scripts\activate  # On Windows
+# Start the FastAPI development server
+uv run openagdb-api
 
-# Run the main application
-python -m equipment_testing
+# The API will be available at http://localhost:8000
+# Interactive API docs at http://localhost:8000/docs
 ```
 
-### Using the CLI (After Installation)
+### Using the Equipment Models
 
-Once installed, you can use the CLI command directly:
+```python
+from core.models import Tractor, EquipmentCategory, TransmissionType
 
-```bash
-equipment-testing
+# Create a tractor instance
+tractor = Tractor(
+    make="John Deere",
+    model="5075E",
+    series="5E Series",
+    year_start=2014,
+    pto_hp=65,
+    engine_hp=75,
+    transmission_type=TransmissionType.POWERSHIFT,
+)
+
+# Validate and export
+print(tractor.model_dump())
 ```
 
-### Using uv run (Alternative)
-
-You can also use `uv run` to run commands without manually activating the virtual environment:
+### Running Scrapers
 
 ```bash
-uv run python -m equipment_testing
-# or
-uv run equipment-testing
+# Run a specific spider
+uv run scrapy crawl tractordata
+
+# List all available spiders
+uv run scrapy list
 ```
 
 ## Development
@@ -83,23 +145,25 @@ uv run equipment-testing
 
 ```
 equipment-testing/
-├── .github/
-│   └── workflows/
-│       └── ci.yml
+├── .github/workflows/
+│   ├── ci.yml           # Testing, linting, building
+│   └── scraper.yml      # Scheduled data collection
 ├── src/
-│   └── equipment_testing/
-│       ├── __init__.py
-│       ├── __main__.py
-│       └── py.typed
-├── tests/
-│   ├── __init__.py
-│   └── test_basic.py
-├── .gitignore
-├── .pre-commit-config.yaml
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── pyproject.toml
+│   ├── api/             # FastAPI REST API
+│   │   └── main.py      # API endpoints
+│   ├── core/            # Core data models
+│   │   ├── models.py    # Pydantic equipment models
+│   │   └── iceberg_utils.py  # Iceberg table utilities
+│   ├── scrapers/        # Scrapy data collection
+│   │   ├── spiders/     # Spider implementations
+│   │   ├── pipelines.py # Data processing pipelines
+│   │   └── settings.py  # Scrapy configuration
+│   ├── frontend/        # React frontend (future)
+│   └── equipment_testing/  # Legacy CLI
+├── tests/               # Pytest test suite
+│   ├── test_models.py   # Model tests
+│   └── test_api.py      # API tests
+├── pyproject.toml       # Project metadata & dependencies
 └── README.md
 ```
 
@@ -113,16 +177,25 @@ uv add <package-name>
 
 # Add a development dependency
 uv add --dev <package-name>
+
+# Add to specific optional group
+uv add --optional iceberg <package-name>
 ```
 
 ### Running Tests
 
 ```bash
-# Run tests with pytest
+# Run all tests
 uv run pytest
 
-# Run tests with coverage
-uv run pytest --cov=equipment_testing
+# Run with coverage
+uv run pytest --cov=core --cov=api --cov-report=term
+
+# Run specific test file
+uv run pytest tests/test_models.py
+
+# Run specific test
+uv run pytest tests/test_models.py::test_tractor_creation
 ```
 
 ### Code Quality
@@ -188,6 +261,106 @@ This will create wheel and source distributions in the `dist/` directory.
 uv pip install -e .
 ```
 
+## API Documentation
+
+Once the API server is running, interactive documentation is available at:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Example API Endpoints
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# List all equipment
+curl http://localhost:8000/equipment?limit=10
+
+# Filter tractors by manufacturer
+curl http://localhost:8000/equipment/tractors?make=John%20Deere
+
+# Submit a contribution
+curl -X POST http://localhost:8000/contributions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "field_name": "engine_hp",
+    "proposed_value": "105",
+    "notes": "Updated from manufacturer specs"
+  }'
+```
+
+## Data Model
+
+OpenAg-DB uses Pydantic models for data validation and serialization:
+
+- **CommonEquipment**: Base model with fields shared across all equipment
+- **Tractor**: Extends CommonEquipment with tractor-specific fields
+- **Combine**: Extends CommonEquipment with combine-specific fields  
+- **Implement**: Extends CommonEquipment with implement-specific fields
+
+All models support:
+- Automatic validation
+- Type safety
+- JSON serialization
+- Time-travel queries (via Iceberg snapshots)
+
+## Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Submit Equipment Data**: Use the web interface to suggest corrections
+2. **Improve Scrapers**: Add new spiders for additional data sources
+3. **Enhance Models**: Propose new equipment types or fields
+4. **Fix Bugs**: Report and fix issues on GitHub
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## Roadmap
+
+### Phase 1: Core Setup ✅
+- [x] Initialize project structure
+- [x] Define Pydantic models
+- [x] Create FastAPI application
+- [x] Set up Scrapy framework
+
+### Phase 2: Data Collection
+- [ ] Implement manufacturer-specific spiders
+- [ ] Add Iceberg table integration
+- [ ] Configure AWS S3 Tables
+- [ ] Set up automated scraping workflow
+
+### Phase 3: API & Query Layer
+- [ ] Integrate DuckDB for Iceberg queries
+- [ ] Add authentication/rate limiting
+- [ ] Implement contribution workflow
+- [ ] Deploy to AWS Lambda
+
+### Phase 4: Frontend
+- [ ] Build React search interface
+- [ ] Add filtering and sorting
+- [ ] Implement contribution form
+- [ ] Deploy to GitHub Pages
+
+### Phase 5: Community Features
+- [ ] Automated contribution review
+- [ ] Data quality metrics
+- [ ] Community guidelines
+- [ ] Public API keys
+
+## Technology Stack
+
+- **Language**: Python 3.12+
+- **Package Manager**: uv
+- **Data Models**: Pydantic
+- **API Framework**: FastAPI
+- **Scraping**: Scrapy
+- **Storage**: Apache Iceberg on AWS S3 Tables
+- **Query Engine**: DuckDB
+- **Frontend**: React + Vite + Shadcn UI
+- **CI/CD**: GitHub Actions
+- **Hosting**: AWS Lambda (API) + GitHub Pages (Frontend)
+
 ## Why uv?
 
 - **Fast**: 10-100x faster than pip
@@ -195,23 +368,6 @@ uv pip install -e .
 - **Compatible**: Drop-in replacement for pip and pip-tools
 - **Modern**: Built with Rust for performance
 - **All-in-one**: Package management, virtual environments, and more
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to contribute to this project.
-
-Quick summary:
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and linting
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes and version history.
 
 ## License
 
