@@ -143,8 +143,11 @@ function App() {
                   <p>No equipment found matching your criteria.</p>
                 </div>
               ) : (
-                filteredEquipment.map((item, index) => (
-                  <EquipmentCard key={index} equipment={item} />
+                filteredEquipment.map((item) => (
+                  <EquipmentCard 
+                    key={`${item.category}-${item.make}-${item.model}-${item.year_start || 'unknown'}`} 
+                    equipment={item} 
+                  />
                 ))
               )}
             </section>
