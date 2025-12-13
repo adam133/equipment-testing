@@ -42,6 +42,19 @@ npm run dev
 
 This will start the development server at http://localhost:5173
 
+### Testing
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
 ### Build
 
 ```bash
@@ -62,9 +75,13 @@ npm run preview
 frontend/
 ├── src/
 │   ├── components/       # React components
-│   │   └── EquipmentCard.tsx
+│   │   ├── EquipmentCard.tsx
+│   │   └── EquipmentCard.test.tsx
 │   ├── lib/              # Utilities and mock data
-│   │   └── mockApi.ts    # Mock backend responses
+│   │   ├── mockApi.ts    # Mock backend responses
+│   │   └── mockApi.test.ts
+│   ├── test/             # Test setup
+│   │   └── setup.ts
 │   ├── App.tsx           # Main app component
 │   ├── App.css           # Styles
 │   ├── main.tsx          # Entry point
@@ -72,9 +89,29 @@ frontend/
 ├── dist/                 # Build output (not committed)
 ├── index.html            # HTML template
 ├── package.json          # Dependencies
+├── package-lock.json     # Locked dependencies
 ├── tsconfig.json         # TypeScript config
 └── vite.config.ts        # Vite configuration
 ```
+
+## 🧪 Testing
+
+The frontend uses Vitest for unit testing with React Testing Library for component tests.
+
+**Test Coverage:**
+- Mock API functions (filtering, searching, statistics)
+- EquipmentCard component rendering for all equipment types
+- Type-specific fields (tractor, combine, implement)
+
+**Running Tests:**
+```bash
+npm test              # Run all tests
+npm run test:watch    # Watch mode for development
+npm run test:coverage # Generate coverage report
+```
+
+**CI/CD:**
+Frontend tests run automatically in GitHub Actions on every push and pull request.
 
 ## 🎨 Mock Data
 
