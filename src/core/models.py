@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 
 class EquipmentCategory(str, Enum):
@@ -73,7 +73,7 @@ class CommonEquipment(BaseModel):
 
     @field_validator("year_end")
     @classmethod
-    def validate_year_range(cls, v: int | None, info) -> int | None:
+    def validate_year_range(cls, v: int | None, info: ValidationInfo) -> int | None:
         """Validate that year_end is not before year_start."""
         if v is not None and info.data.get("year_start") is not None:
             if v < info.data["year_start"]:
@@ -199,7 +199,7 @@ class Implement(CommonEquipment):
 
     @field_validator("required_hp_max")
     @classmethod
-    def validate_hp_range(cls, v: float | None, info) -> float | None:
+    def validate_hp_range(cls, v: float | None, info: ValidationInfo) -> float | None:
         """Validate that required_hp_max is not less than required_hp_min."""
         if v is not None and info.data.get("required_hp_min") is not None:
             if v < info.data["required_hp_min"]:

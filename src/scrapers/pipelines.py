@@ -56,7 +56,7 @@ class IcebergWriterPipeline:
     This pipeline stages validated equipment data for writing to S3 Tables.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the pipeline."""
         self.items_buffer: list[dict] = []
         self.buffer_size = 100  # Write in batches
