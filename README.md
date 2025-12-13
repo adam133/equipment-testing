@@ -1,7 +1,7 @@
 # Equipment Testing
 
 [![CI](https://github.com/adam133/equipment-testing/workflows/CI/badge.svg)](https://github.com/adam133/equipment-testing/actions)
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Python application for equipment testing, built with [uv](https://github.com/astral-sh/uv) - a fast Python package installer and resolver.
@@ -12,7 +12,7 @@ This application provides tools and utilities for testing equipment. Built using
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.12 or higher
 - uv (Python package installer)
 
 ## Installation
