@@ -6,6 +6,12 @@
 
 A public, community-driven agricultural equipment database using a Python-centric stack and Lakehouse architecture. OpenAg-DB provides comprehensive specifications for tractors, combines, implements, and other agricultural equipment.
 
+## 🚀 Live Demo
+
+**Frontend**: [https://adam133.github.io/equipment-testing/](https://adam133.github.io/equipment-testing/)
+
+The frontend is currently deployed with mock data for demonstration purposes. It showcases the search, filtering, and browsing capabilities with sample tractors, combines, and implements.
+
 ## 🌾 About
 
 OpenAg-DB is designed to be the go-to resource for agricultural equipment specifications, built on modern data infrastructure:
@@ -62,6 +68,8 @@ OpenAg-DB supports multiple equipment categories with specialized models:
 
 ## Quick Start
 
+### Backend (Python)
+
 ```bash
 # Clone and install
 git clone https://github.com/adam133/equipment-testing.git
@@ -77,6 +85,23 @@ uv run openagdb-api
 
 # Run tests
 uv run pytest
+```
+
+### Frontend (React)
+
+```bash
+# Navigate to frontend directory
+cd src/frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+# Visit http://localhost:5173
+
+# Build for production
+npm run build
 ```
 
 ## Prerequisites
@@ -356,10 +381,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - [ ] Deploy to AWS Lambda
 
 ### Phase 4: Frontend
-- [ ] Build React search interface
-- [ ] Add filtering and sorting
+- [x] Build React search interface
+- [x] Add filtering and sorting
+- [x] Deploy to GitHub Pages
 - [ ] Implement contribution form
-- [ ] Deploy to GitHub Pages
+- [ ] Connect to real API backend
 
 ### Phase 5: Community Features
 - [ ] Automated contribution review
