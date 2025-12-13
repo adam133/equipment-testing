@@ -67,12 +67,7 @@ jobs:
         run: |
           aws lambda update-function-configuration \
             --function-name openagdb-api \
-            --environment 'Variables={
-              "ENVIRONMENT":"production",
-              "S3_DATALAKE_BUCKET":"${{ secrets.S3_DATALAKE_BUCKET }}",
-              "AWS_REGION":"${{ secrets.AWS_REGION }}",
-              "ALLOWED_ORIGINS":"${{ vars.ALLOWED_ORIGINS }}"
-            }'
+            --environment Variables="{ENVIRONMENT=production,S3_DATALAKE_BUCKET=${{ secrets.S3_DATALAKE_BUCKET }},AWS_REGION=${{ secrets.AWS_REGION }},ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}}"
 
       - name: Publish new version
         run: |
