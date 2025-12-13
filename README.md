@@ -142,8 +142,11 @@ uv run pre-commit run --all-files
 #### Manual Code Quality Checks
 
 ```bash
-# Format code with black
-uv run black src/ tests/
+# Format code with ruff
+uv run ruff format src/ tests/
+
+# Check formatting without making changes
+uv run ruff format --check src/ tests/
 
 # Lint code with ruff
 uv run ruff check src/ tests/

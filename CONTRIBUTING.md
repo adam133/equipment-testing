@@ -46,7 +46,7 @@ Thank you for your interest in contributing to Equipment Testing! This document 
 4. Run linters and formatters:
    ```bash
    # Format code
-   uv run black src/ tests/
+   uv run ruff format src/ tests/
    
    # Lint code
    uv run ruff check src/ tests/
@@ -59,7 +59,7 @@ Thank you for your interest in contributing to Equipment Testing! This document 
 
 - Follow PEP 8 guidelines
 - Use type hints for function signatures
-- Maximum line length: 88 characters (Black default)
+- Maximum line length: 88 characters (Ruff default)
 - Write docstrings for public functions and classes
 
 ### Testing
