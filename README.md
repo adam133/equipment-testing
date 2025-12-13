@@ -60,6 +60,25 @@ OpenAg-DB supports multiple equipment categories with specialized models:
 - Required HP Range
 - Row Configuration (for planters/cultivators)
 
+## Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/adam133/equipment-testing.git
+cd equipment-testing
+uv sync
+
+# Run examples
+uv run python examples.py
+
+# Start the API server
+uv run openagdb-api
+# Visit http://localhost:8000/docs for interactive API documentation
+
+# Run tests
+uv run pytest
+```
+
 ## Prerequisites
 
 - Python 3.12 or higher
