@@ -1,5 +1,9 @@
 # Equipment Testing
 
+[![CI](https://github.com/adam133/equipment-testing/workflows/CI/badge.svg)](https://github.com/adam133/equipment-testing/actions)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Python application for equipment testing, built with [uv](https://github.com/astral-sh/uv) - a fast Python package installer and resolver.
 
 ## About
@@ -55,12 +59,22 @@ source .venv/bin/activate  # On Unix/macOS
 python -m equipment_testing
 ```
 
+### Using the CLI (After Installation)
+
+Once installed, you can use the CLI command directly:
+
+```bash
+equipment-testing
+```
+
 ### Using uv run (Alternative)
 
 You can also use `uv run` to run commands without manually activating the virtual environment:
 
 ```bash
 uv run python -m equipment_testing
+# or
+uv run equipment-testing
 ```
 
 ## Development
@@ -69,13 +83,23 @@ uv run python -m equipment_testing
 
 ```
 equipment-testing/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── src/
 │   └── equipment_testing/
-│       └── __init__.py
+│       ├── __init__.py
+│       ├── __main__.py
+│       └── py.typed
 ├── tests/
-│   └── __init__.py
-├── pyproject.toml
+│   ├── __init__.py
+│   └── test_basic.py
 ├── .gitignore
+├── .pre-commit-config.yaml
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── pyproject.toml
 └── README.md
 ```
 
@@ -103,12 +127,29 @@ uv run pytest --cov=equipment_testing
 
 ### Code Quality
 
+#### Pre-commit Hooks
+
+Set up pre-commit hooks to automatically check code quality:
+
+```bash
+# Install pre-commit hooks
+uv run pre-commit install
+
+# Run hooks manually
+uv run pre-commit run --all-files
+```
+
+#### Manual Code Quality Checks
+
 ```bash
 # Format code with black
 uv run black src/ tests/
 
 # Lint code with ruff
 uv run ruff check src/ tests/
+
+# Fix linting issues automatically
+uv run ruff check --fix src/ tests/
 
 # Type checking with mypy
 uv run mypy src/
@@ -154,6 +195,9 @@ uv pip install -e .
 
 ## Contributing
 
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to contribute to this project.
+
+Quick summary:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
@@ -161,6 +205,10 @@ uv pip install -e .
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes and version history.
 
 ## License
 

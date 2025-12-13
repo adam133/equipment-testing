@@ -8,6 +8,7 @@ license = { text = "MIT" }
 authors = [
     { name = "Equipment Testing Team", email = "team@example.com" }
 ]
+keywords = ["equipment", "testing", "automation"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -22,6 +23,15 @@ classifiers = [
 
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/adam133/equipment-testing"
+Repository = "https://github.com/adam133/equipment-testing"
+Documentation = "https://github.com/adam133/equipment-testing#readme"
+Issues = "https://github.com/adam133/equipment-testing/issues"
+
+[project.scripts]
+equipment-testing = "equipment_testing.__main__:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
@@ -29,6 +39,7 @@ dev = [
     "black>=23.7.0",
     "ruff>=0.0.285",
     "mypy>=1.5.0",
+    "pre-commit>=3.5.0",
 ]
 
 [build-system]
