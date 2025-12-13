@@ -109,7 +109,7 @@ npm run build
 - Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 - Node.js 22+ (for frontend development)
-- AWS credentials (for S3 Tables access in production)
+- AWS credentials (for S3 Tables access in production) - See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md)
 
 ## Installation
 
@@ -371,7 +371,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 ### Phase 2: Data Collection
 - [ ] Implement manufacturer-specific spiders
 - [ ] Add Iceberg table integration
-- [ ] Configure AWS S3 Tables
+- [x] Configure AWS S3 Tables (see [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md))
 - [ ] Set up automated scraping workflow
 
 ### Phase 3: API & Query Layer
@@ -420,6 +420,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Resources
 
+- [AWS Quick Start Guide](AWS_QUICKSTART.md) - Fast setup for AWS infrastructure
+- [AWS Configuration Guide](AWS_CONFIGURATION.md) - Comprehensive AWS setup and security best practices
+- [Terraform Examples](terraform/README.md) - Infrastructure-as-code templates
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [Python Packaging Guide](https://packaging.python.org/)
 - [Project Repository](https://github.com/adam133/equipment-testing)

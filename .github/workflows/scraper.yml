@@ -12,18 +12,29 @@ on:
         required: false
         default: ''
 
+# Required for OIDC authentication with AWS
 permissions:
+  id-token: write
   contents: read
 
 jobs:
   scrape:
     name: Run Equipment Scrapers
     runs-on: ubuntu-latest
+    environment: production
     permissions:
+      id-token: write
       contents: read
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Configure AWS credentials using OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_SCRAPER_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        role-session-name: GitHubActions-OpenAgDB-Scraper
 
     - name: Install uv
       uses: astral-sh/setup-uv@v3
@@ -39,10 +50,10 @@ jobs:
 
     - name: Run scrapers
       env:
-        # AWS credentials for S3 Tables access (set in GitHub Secrets)
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
+        # S3 buckets for data storage and artifacts
+        S3_DATALAKE_BUCKET: ${{ secrets.S3_DATALAKE_BUCKET }}
+        S3_ARTIFACTS_BUCKET: ${{ secrets.S3_ARTIFACTS_BUCKET }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
       run: |
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all spiders..."
