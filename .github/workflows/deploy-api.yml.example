@@ -1,0 +1,101 @@
+name: Deploy API to AWS Lambda
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/api/**'
+      - 'src/core/**'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+# Required for OIDC authentication with AWS
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy API to AWS Lambda
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOYMENT_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-OpenAgDB-API-Deploy
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          uv sync --no-dev
+
+      - name: Package Lambda function
+        run: |
+          mkdir -p lambda-package
+          # Copy application code
+          cp -r src/api lambda-package/
+          cp -r src/core lambda-package/
+          # Install dependencies to package directory
+          uv pip install --target lambda-package -r <(uv pip freeze)
+          # Create deployment package
+          cd lambda-package
+          zip -r ../openagdb-api.zip .
+          cd ..
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name openagdb-api \
+            --zip-file fileb://openagdb-api.zip
+
+      - name: Update Lambda environment variables
+        run: |
+          aws lambda update-function-configuration \
+            --function-name openagdb-api \
+            --environment "Variables={
+              ENVIRONMENT=production,
+              S3_DATALAKE_BUCKET=${{ secrets.S3_DATALAKE_BUCKET }},
+              AWS_REGION=${{ secrets.AWS_REGION }},
+              ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+            }"
+
+      - name: Publish new version
+        run: |
+          aws lambda publish-version \
+            --function-name openagdb-api \
+            --description "Deployed from GitHub Actions - ${{ github.sha }}"
+
+      - name: Wait for function update
+        run: |
+          aws lambda wait function-updated \
+            --function-name openagdb-api
+
+      - name: Test API endpoint
+        run: |
+          FUNCTION_URL=$(aws lambda get-function-url-config \
+            --function-name openagdb-api \
+            --query 'FunctionUrl' \
+            --output text)
+          curl -f "${FUNCTION_URL}health" || exit 1
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ API deployed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Function: openagdb-api" >> $GITHUB_STEP_SUMMARY
+          echo "- Region: ${{ secrets.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
