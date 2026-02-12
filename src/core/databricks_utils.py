@@ -101,6 +101,11 @@ class TableManager:
         Args:
             table_name: Name of the table
             records: List of record dictionaries to upsert
+
+        Note:
+            Currently implements simple INSERT. Future enhancement should use
+            MERGE INTO for proper upsert behavior to prevent duplicates.
+            For production use, implement MERGE logic with make+model+year as key.
         """
         if not records:
             return
@@ -112,9 +117,8 @@ class TableManager:
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
         )
 
-        # For simplicity, we'll insert records in batches
-        # In a production system, you'd want to use MERGE INTO for true upserts
-        # For now, we'll use a simpler approach with INSERT INTO
+        # Simple INSERT implementation
+        # TODO: Implement proper MERGE INTO for deduplication
         for record in records:
             columns = list(record.keys())
             values = [record[col] for col in columns]
@@ -243,10 +247,27 @@ def get_table_manager(
 
     Returns:
         Configured TableManager instance
+
+    Raises:
+        ValueError: If required credentials are missing
     """
+    final_host = host if host is not None else os.getenv("DATABRICKS_HOST", "")
+    final_http_path = (
+        http_path if http_path is not None else os.getenv("DATABRICKS_HTTP_PATH", "")
+    )
+    final_token = token if token is not None else os.getenv("DATABRICKS_TOKEN", "")
+
+    # Validate required credentials
+    if not final_host:
+        raise ValueError("Missing required environment variable: DATABRICKS_HOST")
+    if not final_http_path:
+        raise ValueError("Missing required environment variable: DATABRICKS_HTTP_PATH")
+    if not final_token:
+        raise ValueError("Missing required environment variable: DATABRICKS_TOKEN")
+
     config = DatabricksConfig(
-        host=host if host is not None else os.getenv("DATABRICKS_HOST", ""),
-        http_path=http_path if http_path is not None else os.getenv("DATABRICKS_HTTP_PATH", ""),
-        token=token if token is not None else os.getenv("DATABRICKS_TOKEN", ""),
+        host=final_host,
+        http_path=final_http_path,
+        token=final_token,
     )
     return TableManager(config)

@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from scrapy import Spider
 from scrapy.exceptions import DropItem
 
+from core.databricks_utils import TableManager
 from core.models import create_equipment
 
 
@@ -62,7 +63,7 @@ class DatabricksWriterPipeline:
         """Initialize the pipeline."""
         self.items_buffer: list[dict] = []
         self.buffer_size = 100  # Write in batches
-        self.table_manager: Any | None = None
+        self.table_manager: TableManager | None = None
 
     def open_spider(self, spider: Spider) -> None:
         """Called when spider is opened.
