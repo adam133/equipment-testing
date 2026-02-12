@@ -1,6 +1,6 @@
 """Main FastAPI application for OpenAg-DB API.
 
-This API serves agricultural equipment data from Iceberg tables
+This API serves agricultural equipment data from Databricks Delta tables
 and provides endpoints for user contributions.
 """
 
@@ -120,13 +120,13 @@ async def list_equipment(
         List of equipment matching filters
 
     Note:
-        This is a placeholder. Actual implementation would query Iceberg tables
-        using DuckDB for fast serverless analytics.
+        This is a placeholder. Actual implementation would query Databricks
+        Delta tables using the databricks_utils module.
     """
     # Placeholder for actual query logic
     # In production, this would:
-    # 1. Build DuckDB query against Iceberg Parquet files
-    # 2. Apply filters
+    # 1. Connect to Databricks using databricks_utils
+    # 2. Build SQL query with filters
     # 3. Execute query and return results
     return []
 
@@ -213,7 +213,7 @@ async def get_equipment(equipment_id: str) -> CommonEquipment:
         HTTPException: If equipment not found
     """
     # Placeholder for single item retrieval
-    # In production, query by ID from Iceberg table
+    # In production, query by ID from Databricks Delta table
     raise HTTPException(status_code=404, detail="Equipment not found")
 
 
@@ -270,7 +270,7 @@ async def get_statistics() -> dict[str, Any]:
 def main() -> None:
     """Run the API server (for development).
 
-    In production, this would be deployed as AWS Lambda.
+    In production, this would be deployed as a containerized service.
     """
     import uvicorn
 

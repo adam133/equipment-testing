@@ -23,6 +23,7 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "scrapy>=2.11.0",
     "httpx>=0.25.0",
+    "databricks-sql-connector>=3.0.0",
 ]
 
 [project.urls]
@@ -43,10 +44,9 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.5.0",
 ]
-# Optional dependencies for full Iceberg support
-iceberg = [
-    "pyiceberg>=0.5.0",
-    "duckdb>=0.9.0",
+# Optional dependencies for advanced data processing
+data = [
+    "pyarrow>=14.0.0",
 ]
 # Optional dependencies for advanced scraping
 scraping = [
