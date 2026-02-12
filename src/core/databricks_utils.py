@@ -1,157 +1,252 @@
-"""Utilities for working with Apache Iceberg tables.
+"""Utilities for working with Databricks Delta tables.
 
-This module provides helper functions for interacting with Iceberg tables
-stored in AWS S3 Tables for the OpenAg-DB project.
+This module provides helper functions for interacting with Delta tables
+stored in Databricks for the OpenAg-DB project.
 """
 
+import os
 from typing import Any
 
+from databricks import sql
 from pydantic import BaseModel
 
 
-class IcebergConfig(BaseModel):
-    """Configuration for Iceberg catalog connection."""
+class DatabricksConfig(BaseModel):
+    """Configuration for Databricks connection."""
 
-    catalog_name: str = "ag_equipment"
-    namespace: str = "ag_equipment"
-    warehouse_path: str  # S3 path like "s3://bucket-name/warehouse"
-    region: str = "us-east-1"
+    host: str  # Databricks workspace host
+    http_path: str  # SQL warehouse HTTP path
+    token: str  # Access token
+    catalog_name: str = "equip"
+    schema_name: str = "ag_equipment"
 
 
 class TableManager:
-    """Manages Iceberg table operations.
+    """Manages Databricks Delta table operations.
 
-    This class provides methods to create, update, and query Iceberg tables
+    This class provides methods to create, update, and query Delta tables
     for agricultural equipment data.
     """
 
-    def __init__(self, config: IcebergConfig):
+    def __init__(self, config: DatabricksConfig):
         """Initialize the table manager.
 
         Args:
-            config: Iceberg configuration
+            config: Databricks configuration
         """
         self.config = config
-        self._catalog: Any | None = None
+        self._connection: Any | None = None
 
-    def _get_catalog(self) -> Any:
-        """Get or create the Iceberg catalog connection.
+    def _get_connection(self) -> Any:
+        """Get or create the Databricks SQL connection.
 
         Returns:
-            PyIceberg catalog instance
-
-        Note:
-            This is a placeholder. Actual implementation would use pyiceberg
-            to connect to AWS S3 Tables catalog.
+            Databricks SQL connection instance
         """
-        if self._catalog is None:
-            # Placeholder for actual pyiceberg catalog initialization
-            # from pyiceberg.catalog import load_catalog
-            # self._catalog = load_catalog(
-            #     name=self.config.catalog_name,
-            #     **{
-            #         "type": "s3tables",
-            #         "warehouse": self.config.warehouse_path,
-            #         "s3.region": self.config.region,
-            #     }
-            # )
-            pass
-        return self._catalog
+        if self._connection is None:
+            self._connection = sql.connect(
+                server_hostname=self.config.host,
+                http_path=self.config.http_path,
+                access_token=self.config.token,
+            )
+        return self._connection
+
+    def close(self) -> None:
+        """Close the Databricks connection."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
 
     def create_table(self, table_name: str, schema: dict[str, Any]) -> None:
-        """Create a new Iceberg table.
+        """Create a new Delta table.
 
         Args:
             table_name: Name of the table to create
-            schema: Iceberg schema definition
+            schema: Table schema definition (dict mapping column names to types)
 
-        Note:
-            This is a placeholder for actual table creation logic.
+        Example:
+            schema = {
+                "make": "STRING",
+                "model": "STRING",
+                "year": "INT",
+                "category": "STRING",
+            }
         """
-        # Placeholder for table creation
-        # catalog = self._get_catalog()
-        # table = catalog.create_table(
-        #     identifier=f"{self.config.namespace}.{table_name}",
-        #     schema=schema
-        # )
-        pass
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Build CREATE TABLE statement
+        columns = [f"{col} {dtype}" for col, dtype in schema.items()]
+        columns_str = ", ".join(columns)
+
+        full_table_name = (
+            f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
+        )
+
+        create_stmt = f"""
+        CREATE TABLE IF NOT EXISTS {full_table_name} (
+            {columns_str}
+        ) USING DELTA
+        """
+
+        cursor.execute(create_stmt)
+        cursor.close()
 
     def upsert_records(self, table_name: str, records: list[dict[str, Any]]) -> None:
-        """Upsert records into an Iceberg table.
+        """Upsert records into a Delta table.
 
-        Uses Iceberg MERGE INTO logic: if a record with the same make + model + year
+        Uses Delta MERGE INTO logic: if a record with the same make + model + year
         exists, update the specs; otherwise, insert.
 
         Args:
             table_name: Name of the table
             records: List of record dictionaries to upsert
-
-        Note:
-            This is a placeholder for actual upsert logic.
         """
-        # Placeholder for upsert logic
-        # catalog = self._get_catalog()
-        # table = catalog.load_table(f"{self.config.namespace}.{table_name}")
-        # For each record, check if exists and update or insert
-        pass
+        if not records:
+            return
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        full_table_name = (
+            f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
+        )
+
+        # For simplicity, we'll insert records in batches
+        # In a production system, you'd want to use MERGE INTO for true upserts
+        # For now, we'll use a simpler approach with INSERT INTO
+        for record in records:
+            columns = list(record.keys())
+            values = [record[col] for col in columns]
+
+            # Build INSERT statement
+            columns_str = ", ".join(columns)
+            placeholders = ", ".join(["?" for _ in columns])
+
+            insert_stmt = f"""
+            INSERT INTO {full_table_name} ({columns_str})
+            VALUES ({placeholders})
+            """
+
+            cursor.execute(insert_stmt, values)
+
+        cursor.close()
 
     def query_table(
         self, table_name: str, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
-        """Query records from an Iceberg table.
+        """Query records from a Delta table.
 
         Args:
             table_name: Name of the table to query
-            filters: Optional filter conditions
+            filters: Optional filter conditions (simple key-value pairs)
 
         Returns:
             List of matching records
-
-        Note:
-            This is a placeholder for actual query logic.
         """
-        # Placeholder for query logic
-        # catalog = self._get_catalog()
-        # table = catalog.load_table(f"{self.config.namespace}.{table_name}")
-        # scan = table.scan()
-        # if filters:
-        #     scan = scan.filter(filters)
-        # return list(scan.to_arrow().to_pylist())
-        return []
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
-    def get_table_snapshot(
-        self, table_name: str, snapshot_id: int | None = None
-    ) -> Any:
-        """Get a specific snapshot of a table for time travel queries.
+        full_table_name = (
+            f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
+        )
+
+        query = f"SELECT * FROM {full_table_name}"
+
+        if filters:
+            conditions = [f"{key} = ?" for key in filters.keys()]
+            where_clause = " AND ".join(conditions)
+            query += f" WHERE {where_clause}"
+            cursor.execute(query, list(filters.values()))
+        else:
+            cursor.execute(query)
+
+        # Fetch results and convert to list of dicts
+        columns = [desc[0] for desc in cursor.description]
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(zip(columns, row)))
+
+        cursor.close()
+        return results
+
+    def get_table_schema(self, table_name: str) -> dict[str, str]:
+        """Get the schema of a table.
 
         Args:
             table_name: Name of the table
-            snapshot_id: Optional snapshot ID. If None, returns current snapshot.
 
         Returns:
-            Table snapshot
+            Dictionary mapping column names to types
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        full_table_name = (
+            f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
+        )
+
+        cursor.execute(f"DESCRIBE {full_table_name}")
+
+        schema = {}
+        for row in cursor.fetchall():
+            col_name = row[0]
+            col_type = row[1]
+            schema[col_name] = col_type
+
+        cursor.close()
+        return schema
+
+    def get_table_history(self, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Get the history of a Delta table for time travel queries.
+
+        Args:
+            table_name: Name of the table
+            limit: Maximum number of history entries to return
+
+        Returns:
+            List of table history entries
 
         Note:
-            This is a placeholder for actual snapshot retrieval logic.
+            This uses Delta Lake's time travel feature to access historical versions.
         """
-        # Placeholder for snapshot logic
-        # catalog = self._get_catalog()
-        # table = catalog.load_table(f"{self.config.namespace}.{table_name}")
-        # if snapshot_id:
-        #     return table.snapshot(snapshot_id)
-        # return table.current_snapshot()
-        pass
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        full_table_name = (
+            f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
+        )
+
+        cursor.execute(f"DESCRIBE HISTORY {full_table_name} LIMIT {limit}")
+
+        # Fetch history entries
+        columns = [desc[0] for desc in cursor.description]
+        history = []
+        for row in cursor.fetchall():
+            history.append(dict(zip(columns, row)))
+
+        cursor.close()
+        return history
 
 
-def get_table_manager(warehouse_path: str, region: str = "us-east-1") -> TableManager:
+def get_table_manager(
+    host: str | None = None,
+    http_path: str | None = None,
+    token: str | None = None,
+) -> TableManager:
     """Get a configured table manager instance.
 
     Args:
-        warehouse_path: S3 path to the warehouse
-        region: AWS region
+        host: Databricks workspace host (defaults to DATABRICKS_HOST env var)
+        http_path: SQL warehouse HTTP path (defaults to DATABRICKS_HTTP_PATH env var)
+        token: Access token (defaults to DATABRICKS_TOKEN env var)
 
     Returns:
         Configured TableManager instance
     """
-    config = IcebergConfig(warehouse_path=warehouse_path, region=region)
+    config = DatabricksConfig(
+        host=host if host is not None else os.getenv("DATABRICKS_HOST", ""),
+        http_path=http_path if http_path is not None else os.getenv("DATABRICKS_HTTP_PATH", ""),
+        token=token if token is not None else os.getenv("DATABRICKS_TOKEN", ""),
+    )
     return TableManager(config)
