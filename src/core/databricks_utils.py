@@ -8,7 +8,7 @@ hosted on Databricks, or run as an open-source server.
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import duckdb
 from pydantic import BaseModel
@@ -153,7 +153,7 @@ class TableManager:
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         # Validate column names and types, then build CREATE TABLE statement
@@ -162,7 +162,7 @@ class TableManager:
             _validate_identifier(col, f"column name '{col}'")
             _validate_sql_type(dtype)
             validated_columns.append(f"{col} {dtype}")
-        
+
         columns_str = ", ".join(validated_columns)
 
         full_table_name = (
@@ -197,7 +197,7 @@ class TableManager:
 
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -208,7 +208,7 @@ class TableManager:
         columns = list(records[0].keys())
         for col in columns:
             _validate_identifier(col, f"column name '{col}'")
-        
+
         # Validate that all records have the same keys
         first_keys = set(records[0].keys())
         for i, record in enumerate(records[1:], start=1):
@@ -222,7 +222,7 @@ class TableManager:
                 if extra:
                     error_msg += f"Extra keys: {extra}."
                 raise ValueError(error_msg)
-        
+
         columns_str = ", ".join(columns)
         placeholders = ", ".join(["?" for _ in columns])
 
@@ -254,7 +254,7 @@ class TableManager:
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -316,7 +316,7 @@ class TableManager:
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -356,7 +356,7 @@ class TableManager:
         _validate_identifier(table_name, "table_name")
         if not isinstance(limit, int) or limit < 1:
             raise ValueError(f"limit must be a positive integer, got: {limit}")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
