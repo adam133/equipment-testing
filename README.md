@@ -17,8 +17,8 @@ The frontend is currently deployed with mock data for demonstration purposes. It
 OpenAg-DB is designed to be the go-to resource for agricultural equipment specifications, built on modern data infrastructure:
 
 - **Data Model**: Pydantic models with polymorphic support for different equipment types
-- **Storage**: Apache Iceberg v2 tables on AWS S3 for versioned, queryable data
-- **API**: FastAPI backend with DuckDB for fast serverless analytics
+- **Storage**: Unity Catalog Delta tables for versioned, queryable data
+- **API**: FastAPI backend for serving equipment data
 - **Scrapers**: Polite, scheduled Scrapy spiders for data collection
 - **Frontend**: React + Vite + Shadcn UI for searchable interface
 - **Community**: Open-source contribution model via GitHub
@@ -28,9 +28,9 @@ OpenAg-DB is designed to be the go-to resource for agricultural equipment specif
 ```
 OpenAg-DB/
 ├── src/
-│   ├── api/           # FastAPI backend (AWS Lambda compatible)
+│   ├── api/           # FastAPI backend
 │   ├── scrapers/      # Scrapy spiders for data collection
-│   ├── core/          # Pydantic models & Iceberg utilities
+│   ├── core/          # Pydantic models & Unity Catalog utilities
 │   └── frontend/      # React/Vite static site
 ├── .github/workflows/ # CI/CD and scheduled scrapers
 └── tests/            # Pytest test suite
@@ -40,8 +40,8 @@ OpenAg-DB/
 
 1. **Collection**: Scrapy spiders collect equipment data from manufacturer websites
 2. **Validation**: All data validated against Pydantic models
-3. **Storage**: Data written to Iceberg tables in S3
-4. **Query**: FastAPI + DuckDB serve data to frontend
+3. **Storage**: Data written to Delta tables in Unity Catalog
+4. **Query**: FastAPI serves data to frontend
 5. **Contribution**: Users suggest corrections via GitHub Issues
 
 ## 📊 Equipment Types
@@ -109,7 +109,7 @@ npm run build
 - Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 - Node.js 22+ (for frontend development)
-- AWS credentials (for S3 Tables access in production) - See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md)
+- Unity Catalog endpoint with access token (for data storage in production)
 
 ## Installation
 
@@ -197,7 +197,7 @@ equipment-testing/
 │   │   └── main.py      # API endpoints
 │   ├── core/            # Core data models
 │   │   ├── models.py    # Pydantic equipment models
-│   │   └── iceberg_utils.py  # Iceberg table utilities
+│   │   └── databricks_utils.py  # Unity Catalog utilities
 │   ├── scrapers/        # Scrapy data collection
 │   │   ├── spiders/     # Spider implementations
 │   │   ├── pipelines.py # Data processing pipelines
@@ -370,15 +370,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Phase 2: Data Collection
 - [ ] Implement manufacturer-specific spiders
-- [ ] Add Iceberg table integration
-- [x] Configure AWS S3 Tables (see [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md))
+- [ ] Add Unity Catalog Delta table integration
+- [x] Configure Unity Catalog connection
 - [ ] Set up automated scraping workflow
 
 ### Phase 3: API & Query Layer
-- [ ] Integrate DuckDB for Iceberg queries
+- [ ] Integrate DuckDB for queries
 - [ ] Add authentication/rate limiting
 - [ ] Implement contribution workflow
-- [ ] Deploy to AWS Lambda
+- [ ] Deploy API to production
 
 ### Phase 4: Frontend
 - [x] Build React search interface
@@ -400,11 +400,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - **Data Models**: Pydantic
 - **API Framework**: FastAPI
 - **Scraping**: Scrapy
-- **Storage**: Apache Iceberg on AWS S3 Tables
+- **Storage**: Unity Catalog Delta tables
 - **Query Engine**: DuckDB
 - **Frontend**: React + Vite + Shadcn UI
 - **CI/CD**: GitHub Actions
-- **Hosting**: AWS Lambda (API) + GitHub Pages (Frontend)
+- **Hosting**: TBD (API) + GitHub Pages (Frontend)
 
 ## Why uv?
 
@@ -420,9 +420,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Resources
 
-- [AWS Quick Start Guide](AWS_QUICKSTART.md) - Fast setup for AWS infrastructure
-- [AWS Configuration Guide](AWS_CONFIGURATION.md) - Comprehensive AWS setup and security best practices
-- [Terraform Examples](terraform/README.md) - Infrastructure-as-code templates
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [Python Packaging Guide](https://packaging.python.org/)
 - [Project Repository](https://github.com/adam133/equipment-testing)

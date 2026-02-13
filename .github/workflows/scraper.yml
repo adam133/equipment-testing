@@ -12,29 +12,14 @@ on:
         required: false
         default: ''
 
-# Required for OIDC authentication with AWS
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   scrape:
     name: Run Equipment Scrapers
     runs-on: ubuntu-latest
     environment: production
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Configure AWS credentials using OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_SCRAPER_ROLE_ARN }}
-        aws-region: ${{ secrets.AWS_REGION }}
-        role-session-name: GitHubActions-OpenAgDB-Scraper
 
     - name: Install uv
       uses: astral-sh/setup-uv@v3
@@ -50,10 +35,9 @@ jobs:
 
     - name: Run scrapers
       env:
-        # S3 buckets for data storage and artifacts
-        S3_DATALAKE_BUCKET: ${{ secrets.S3_DATALAKE_BUCKET }}
-        S3_ARTIFACTS_BUCKET: ${{ secrets.S3_ARTIFACTS_BUCKET }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        # Unity Catalog credentials for DuckDB integration
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       run: |
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all spiders..."

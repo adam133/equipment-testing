@@ -47,7 +47,7 @@ This document summarizes the implementation of OpenAg-DB, a public, community-dr
   - Base spider template (`BaseEquipmentSpider`)
   - Settings configured for polite crawling
   - ValidationPipeline for Pydantic validation
-  - IcebergWriterPipeline for data storage
+  - UnityCatalogWriterPipeline for data storage
   - Example spider (`TractorDataSpider`)
 - GitHub Actions workflow for weekly scraping
 - Scrapy configuration file
@@ -95,8 +95,8 @@ This document summarizes the implementation of OpenAg-DB, a public, community-dr
 | Testing | Pytest | 9.0.2 |
 | Linting | Ruff | 0.14.9 |
 | Type Checking | Mypy | 1.19.0 |
-| Data Lake | PyIceberg | 0.10.0 (configured) |
-| Query Engine | DuckDB | 1.4.3 (configured) |
+| Data Lake | DuckDB | 1.0.0+ |
+| Query Engine | DuckDB Unity Catalog | Extension |
 
 ## Code Quality Metrics
 
@@ -121,7 +121,7 @@ equipment-testing/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── models.py       # Pydantic models (245 lines)
-│   │   └── iceberg_utils.py # Iceberg utilities (157 lines)
+│   │   └── databricks_utils.py # Unity Catalog utilities
 │   ├── scrapers/
 │   │   ├── __init__.py
 │   │   ├── settings.py     # Scrapy settings
@@ -162,7 +162,7 @@ equipment-testing/
 - Comprehensive filtering and pagination
 - Interactive documentation
 - CORS configured for security
-- Ready for AWS Lambda deployment
+- Ready for containerized deployment
 
 ### 4. Scalable Scraping
 - Polite crawling with delays
@@ -185,11 +185,10 @@ The application supports the following environment variables:
 |----------|-------------|---------|
 | `ENVIRONMENT` | Runtime environment | (none) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:3000,http://localhost:5173` |
-| `AWS_REGION` | AWS region | `us-east-1` |
-| `S3_DATALAKE_BUCKET` | S3 bucket for Iceberg tables | (none) |
-| `S3_ARTIFACTS_BUCKET` | S3 bucket for scraper artifacts | (none) |
+| `DATABRICKS_HOST` | Unity Catalog endpoint (can be Databricks or OSS) | (none) |
+| `DATABRICKS_TOKEN` | Unity Catalog API token | (none) |
 
-**Note**: AWS credentials are managed via OIDC in production. See [AWS_CONFIGURATION.md](AWS_CONFIGURATION.md) for details.
+**Note**: Unity Catalog credentials are securely managed via GitHub Secrets in production.
 
 ## Usage Examples
 
@@ -247,7 +246,7 @@ uv run scrapy crawl tractordata
 1. **CORS Configuration**: Environment-based, restricted origins in production
 2. **Input Validation**: All input validated with Pydantic
 3. **No Hardcoded Secrets**: All sensitive data via environment variables
-4. **SQL Injection**: N/A (uses Iceberg/DuckDB, not SQL)
+4. **SQL Injection**: Protected via parameterized queries
 5. **CodeQL Scan**: 0 vulnerabilities detected
 
 ## Performance Characteristics
@@ -260,10 +259,10 @@ uv run scrapy crawl tractordata
 ## Future Enhancements
 
 ### Immediate Next Steps
-1. Implement actual S3 Tables integration
+1. Implement actual Unity Catalog Delta table integration
 2. Create manufacturer-specific scrapers
 3. Build React frontend with Vite
-4. Deploy API to AWS Lambda
+4. Deploy API to production
 5. Set up GitHub Pages deployment
 
 ### Long-term Goals
@@ -297,5 +296,6 @@ MIT License - See LICENSE file for details
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Pydantic Documentation](https://docs.pydantic.dev/)
 - [Scrapy Documentation](https://docs.scrapy.org/)
-- [Apache Iceberg](https://iceberg.apache.org/)
+- [Unity Catalog Documentation](https://docs.unitycatalog.io/)
+- [DuckDB Documentation](https://duckdb.org/docs/)
 - [uv Documentation](https://docs.astral.sh/uv/)
