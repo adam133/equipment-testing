@@ -1,6 +1,5 @@
 """Tests for the Quality Farm Supply spider."""
 
-from unittest.mock import MagicMock
 
 import pytest
 from scrapy.http import HtmlResponse
@@ -256,13 +255,19 @@ def test_parse_make_model_known_makes(spider):
     """Test _parse_make_model with known manufacturer names."""
     # Test multi-word makes
     assert spider._parse_make_model("John Deere 5075E") == ("John Deere", "5075E")
-    assert spider._parse_make_model("Case IH Farmall 75C") == ("Case IH", "Farmall 75C")
+    assert spider._parse_make_model("Case IH Farmall 75C") == (
+        "Case IH",
+        "Farmall 75C",
+    )
     assert spider._parse_make_model("New Holland T4.75") == ("New Holland", "T4.75")
-    assert spider._parse_make_model("Massey Ferguson 1840M") == ("Massey Ferguson", "1840M")
-    
+    assert spider._parse_make_model("Massey Ferguson 1840M") == (
+        "Massey Ferguson",
+        "1840M",
+    )
+
     # Test single-word makes
     assert spider._parse_make_model("Kubota M7-172") == ("Kubota", "M7-172")
-    
+
     # Test with extra whitespace
     assert spider._parse_make_model("  John Deere 5075E  ") == ("John Deere", "5075E")
 
@@ -278,9 +283,9 @@ def test_parse_make_model_invalid(spider):
     """Test _parse_make_model with invalid input."""
     # Single word with no space
     assert spider._parse_make_model("SingleWord") is None
-    
+
     # Empty string
     assert spider._parse_make_model("") is None
-    
+
     # Only whitespace
     assert spider._parse_make_model("   ") is None

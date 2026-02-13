@@ -8,7 +8,6 @@ also includes mock data to demonstrate the output format.
 """
 
 import json
-from datetime import UTC, datetime
 
 from core.models import EquipmentCategory, Tractor, TransmissionType
 
@@ -247,7 +246,7 @@ To use this scraper in production:
 3. Use in Python code:
    from scrapy.crawler import CrawlerProcess
    from scrapers.spiders.quality_farm_supply import QualityFarmSupplySpider
-   
+
    process = CrawlerProcess()
    process.crawl(QualityFarmSupplySpider)
    process.start()

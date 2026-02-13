@@ -7,7 +7,6 @@ It loops through multiple makes and models and returns data in a structured form
 from collections.abc import Iterator
 from typing import Any
 
-import scrapy
 from scrapy.http import Response
 
 from core.models import EquipmentCategory
@@ -38,8 +37,9 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
     # Example makes to filter for (can be customized)
     target_makes = ["John Deere", "Case IH", "New Holland", "Kubota", "Massey Ferguson"]
-    
-    # Known manufacturer names for parsing (ordered by length descending to match longest first)
+
+    # Known manufacturer names for parsing
+    # (ordered by length descending to match longest first)
     known_makes = [
         "Massey Ferguson",
         "John Deere",
@@ -58,15 +58,15 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
     def _parse_make_model(self, title: str) -> tuple[str, str] | None:
         """Parse make and model from a title string.
-        
+
         Args:
             title: Title string like "John Deere 5075E"
-            
+
         Returns:
             Tuple of (make, model) or None if parsing fails
         """
         title = title.strip()
-        
+
         # Try to match known makes
         for make in self.known_makes:
             if title.startswith(make):
@@ -74,12 +74,12 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 model = title[len(make):].strip()
                 if model:
                     return make, model
-        
+
         # Fallback: split on first space
         parts = title.split(maxsplit=1)
         if len(parts) >= 2:
             return parts[0], parts[1]
-            
+
         return None
 
     def parse(self, response: Response) -> Iterator[dict[str, Any]]:
@@ -149,7 +149,8 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                     "source_url": response.url,
                 }
 
-                # Try to extract additional fields (adjust indices based on actual table)
+                # Try to extract additional fields
+                # (adjust indices based on actual table)
                 if len(cells) > 2:
                     item_data["series"] = cells[2].strip()
                 if len(cells) > 3:
@@ -243,12 +244,12 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
         # Extract make and model from page
         title = response.css("h1::text, .product-title::text").get(default="")
-        
+
         parsed = self._parse_make_model(title)
         if not parsed:
             self.logger.warning(f"Could not parse make/model from: {title}")
             return
-            
+
         make, model = parsed
 
         # Filter by target makes if specified
