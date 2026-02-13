@@ -42,42 +42,62 @@ jobs:
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all functional spiders..."
           
-          # Get list of all spiders and store in temporary file for safe iteration
-          uv run scrapy list > /tmp/spider_list.txt
-          
-          # Check each spider and run only those with start_urls configured
-          while IFS= read -r spider; do
-            echo "Checking spider: $spider"
-            
-            # Check if spider has start_urls using a Python script
-            # Pass spider name as stdin to avoid injection issues
-            has_urls=$(echo "$spider" | uv run python -c "
-import sys
+          # Get list of functional spiders (with start_urls) in a single Python call
+          uv run python -c "
 from scrapy.utils.project import get_project_settings
 from scrapy.spiderloader import SpiderLoader
 
-spider_name = sys.stdin.read().strip()
 settings = get_project_settings()
 loader = SpiderLoader.from_settings(settings)
 
-try:
-    spider_cls = loader.load(spider_name)
-    # Check if spider has start_urls
-    if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
-        print('yes')
-    else:
-        print('no')
-except Exception:
-    print('no')
-" 2>/dev/null || echo "no")
-            
-            if [ "$has_urls" = "yes" ]; then
-              echo "Running spider: $spider"
-              uv run scrapy crawl "$spider" -o "${spider}_output.json" || echo "Spider $spider failed, continuing..."
+# Get all spider names
+all_spiders = loader.list()
+
+# Filter to only spiders with start_urls
+for spider_name in all_spiders:
+    try:
+        spider_cls = loader.load(spider_name)
+        if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
+            print(spider_name)
+    except Exception:
+        pass
+" > /tmp/functional_spiders.txt
+          
+          # Check if we found any functional spiders
+          if [ ! -s /tmp/functional_spiders.txt ]; then
+            echo "No functional spiders found (no spiders with start_urls configured)"
+            exit 0
+          fi
+          
+          echo "Found functional spiders:"
+          cat /tmp/functional_spiders.txt
+          echo
+          
+          # Track failed spiders
+          failed_spiders=""
+          
+          # Run each functional spider
+          while IFS= read -r spider; do
+            echo "Running spider: $spider"
+            if ! uv run scrapy crawl "$spider" -o "${spider}_output.json"; then
+              echo "ERROR: Spider $spider failed"
+              failed_spiders="${failed_spiders}${spider}\n"
             else
-              echo "Skipping spider $spider (no start_urls configured)"
+              echo "SUCCESS: Spider $spider completed"
             fi
-          done < /tmp/spider_list.txt
+            echo
+          done < /tmp/functional_spiders.txt
+          
+          # Report any failures at the end
+          if [ -n "$failed_spiders" ]; then
+            echo "=========================================="
+            echo "WARNING: Some spiders failed:"
+            echo -e "$failed_spiders"
+            echo "=========================================="
+            exit 1
+          else
+            echo "All spiders completed successfully"
+          fi
         else
           # Validate spider name exists before running
           spider_name="${{ github.event.inputs.spider_name }}"
