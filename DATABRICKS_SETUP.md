@@ -144,7 +144,7 @@ finally:
 
 ### Modified Files
 
-- `src/scrapers/pipelines.py` - Updated to use `DatabricksWriterPipeline`
+- `src/scrapers/pipelines.py` - Updated to use `UnityCatalogWriterPipeline`
 - `src/api/main.py` - Updated comments to reference Unity Catalog
 - `.github/workflows/scraper.yml` - Updated to use Unity Catalog credentials (no HTTP_PATH needed)
 - `pyproject.toml` - Added `duckdb>=1.0.0` dependency

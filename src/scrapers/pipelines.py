@@ -5,8 +5,6 @@ Pipelines:
 2. UnityCatalogWriterPipeline - Writes validated data to Unity Catalog Delta tables
 """
 
-from typing import Any
-
 from pydantic import ValidationError
 from scrapy import Spider
 from scrapy.exceptions import DropItem
@@ -150,15 +148,15 @@ class UnityCatalogWriterPipeline:
 
             # Write to appropriate tables
             if tractors:
-                self.table_manager.upsert_records("tractors", tractors)
+                self.table_manager.insert_records("tractors", tractors)
                 spider.logger.info(f"Wrote {len(tractors)} tractors")
 
             if combines:
-                self.table_manager.upsert_records("combines", combines)
+                self.table_manager.insert_records("combines", combines)
                 spider.logger.info(f"Wrote {len(combines)} combines")
 
             if implements:
-                self.table_manager.upsert_records("implements", implements)
+                self.table_manager.insert_records("implements", implements)
                 spider.logger.info(f"Wrote {len(implements)} implements")
 
         except Exception as e:

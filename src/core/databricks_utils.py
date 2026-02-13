@@ -6,10 +6,45 @@ hosted on Databricks, or run as an open-source server.
 """
 
 import os
+import re
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 import duckdb
 from pydantic import BaseModel
+
+
+def _validate_identifier(identifier: str, name: str = "identifier") -> None:
+    """Validate that an identifier is safe to use in SQL.
+    
+    Args:
+        identifier: The identifier to validate (table name, column name, etc.)
+        name: Description of the identifier for error messages
+        
+    Raises:
+        ValueError: If identifier contains invalid characters
+    """
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):
+        raise ValueError(
+            f"Invalid {name}: '{identifier}'. Must contain only alphanumeric "
+            "characters and underscores, and start with a letter or underscore."
+        )
+
+
+def _validate_sql_type(sql_type: str) -> None:
+    """Validate that a SQL type is safe to use.
+    
+    Args:
+        sql_type: The SQL type to validate
+        
+    Raises:
+        ValueError: If SQL type contains invalid characters
+    """
+    # Allow common SQL types with optional parameters
+    if not re.match(r'^[A-Z_][A-Z0-9_]*(\([0-9,\s]+\))?$', sql_type, re.IGNORECASE):
+        raise ValueError(
+            f"Invalid SQL type: '{sql_type}'. Must be a valid SQL type name."
+        )
 
 
 class UnityCatalogConfig(BaseModel):
@@ -62,22 +97,32 @@ class TableManager:
         self._connection.execute("LOAD unity_catalog;")
 
         # Create Unity Catalog secret for authentication
-        self._connection.execute(f"""
+        # Use parameterized query to prevent SQL injection
+        self._connection.execute(
+            """
             CREATE SECRET uc (
                 TYPE unity_catalog,
-                TOKEN '{self.config.token}',
-                ENDPOINT '{self.config.endpoint}',
-                AWS_REGION '{self.config.aws_region}'
+                TOKEN ?,
+                ENDPOINT ?,
+                AWS_REGION ?
             );
-        """)
+            """,
+            [self.config.token, self.config.endpoint, self.config.aws_region],
+        )
+
+        # Validate catalog name before using it in SQL
+        _validate_identifier(self.config.catalog_name, "catalog_name")
+        _validate_identifier(self.config.schema_name, "schema_name")
 
         # Attach the catalog
-        self._connection.execute(f"""
+        self._connection.execute(
+            f"""
             ATTACH '{self.config.catalog_name}' AS {self.config.catalog_name} (
                 TYPE unity_catalog,
                 DEFAULT_SCHEMA '{self.config.schema_name}'
             );
-        """)
+            """
+        )
 
         self._initialized = True
 
@@ -95,6 +140,9 @@ class TableManager:
             table_name: Name of the table to create
             schema: Table schema definition (dict mapping column names to SQL types)
 
+        Raises:
+            ValueError: If table_name or schema contains invalid identifiers
+
         Example:
             schema = {
                 "make": "VARCHAR",
@@ -103,11 +151,19 @@ class TableManager:
                 "category": "VARCHAR",
             }
         """
+        # Validate table name
+        _validate_identifier(table_name, "table_name")
+        
         conn = self._get_connection()
 
-        # Build CREATE TABLE statement
-        columns = [f"{col} {dtype}" for col, dtype in schema.items()]
-        columns_str = ", ".join(columns)
+        # Validate column names and types, then build CREATE TABLE statement
+        validated_columns = []
+        for col, dtype in schema.items():
+            _validate_identifier(col, f"column name '{col}'")
+            _validate_sql_type(dtype)
+            validated_columns.append(f"{col} {dtype}")
+        
+        columns_str = ", ".join(validated_columns)
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
@@ -121,27 +177,52 @@ class TableManager:
 
         conn.execute(create_stmt)
 
-    def upsert_records(self, table_name: str, records: list[dict[str, Any]]) -> None:
+    def insert_records(self, table_name: str, records: list[dict[str, Any]]) -> None:
         """Insert records into a Delta table.
-
-        Note: True upsert (MERGE) logic would require identifying primary keys.
-        This implementation performs INSERT operations.
 
         Args:
             table_name: Name of the table
             records: List of record dictionaries to insert
+
+        Raises:
+            ValueError: If table_name or column names contain invalid characters,
+                       or if records have inconsistent schemas
+        
+        Note:
+            All records must have the same set of keys. For upsert behavior
+            (update if exists, insert if not), use MERGE logic separately.
         """
         if not records:
             return
 
+        # Validate table name
+        _validate_identifier(table_name, "table_name")
+        
         conn = self._get_connection()
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
         )
 
-        # Get column names from first record
+        # Get column names from first record and validate all records have same keys
         columns = list(records[0].keys())
+        for col in columns:
+            _validate_identifier(col, f"column name '{col}'")
+        
+        # Validate that all records have the same keys
+        first_keys = set(records[0].keys())
+        for i, record in enumerate(records[1:], start=1):
+            record_keys = set(record.keys())
+            if record_keys != first_keys:
+                missing = first_keys - record_keys
+                extra = record_keys - first_keys
+                error_msg = f"Record at index {i} has inconsistent schema. "
+                if missing:
+                    error_msg += f"Missing keys: {missing}. "
+                if extra:
+                    error_msg += f"Extra keys: {extra}."
+                raise ValueError(error_msg)
+        
         columns_str = ", ".join(columns)
         placeholders = ", ".join(["?" for _ in columns])
 
@@ -167,7 +248,13 @@ class TableManager:
 
         Returns:
             List of matching records as dictionaries
+            
+        Raises:
+            ValueError: If table_name or filter keys contain invalid characters
         """
+        # Validate table name
+        _validate_identifier(table_name, "table_name")
+        
         conn = self._get_connection()
 
         full_table_name = (
@@ -175,17 +262,39 @@ class TableManager:
         )
 
         query = f"SELECT * FROM {full_table_name}"
+        params: list[Any] = []
 
         if filters:
-            conditions = [f"{key} = ?" for key in filters.keys()]
+            # Validate filter keys against the actual table schema to prevent
+            # SQL injection via column names
+            try:
+                schema = self.get_table_schema(table_name)
+                valid_columns = set(schema.keys())
+            except Exception as e:
+                raise ValueError(
+                    f"Unable to validate filter columns for table '{table_name}': {e}"
+                ) from e
+
+            invalid_keys = [key for key in filters.keys() if key not in valid_columns]
+            if invalid_keys:
+                raise ValueError(
+                    f"Invalid filter column(s) for table '{table_name}': "
+                    f"{', '.join(invalid_keys)}"
+                )
+
+            conditions: list[str] = []
+            for key, value in filters.items():
+                conditions.append(f"{key} = ?")
+                params.append(value)
+
             where_clause = " AND ".join(conditions)
             query += f" WHERE {where_clause}"
-            result = conn.execute(query, list(filters.values())).fetchall()
-        else:
-            result = conn.execute(query).fetchall()
+
+        cursor = conn.execute(query, params) if params else conn.execute(query)
+        result = cursor.fetchall()
 
         # Get column names
-        description = conn.description
+        description = cursor.description
         if description:
             columns = [desc[0] for desc in description]
             # Convert to list of dicts
@@ -201,7 +310,13 @@ class TableManager:
 
         Returns:
             Dictionary mapping column names to types
+            
+        Raises:
+            ValueError: If table_name contains invalid characters
         """
+        # Validate table name
+        _validate_identifier(table_name, "table_name")
+        
         conn = self._get_connection()
 
         full_table_name = (
@@ -225,15 +340,23 @@ class TableManager:
 
         Args:
             table_name: Name of the table
-            limit: Maximum number of history entries to return
+            limit: Maximum number of history entries to return (must be positive integer)
 
         Returns:
             List of table history entries
+            
+        Raises:
+            ValueError: If table_name contains invalid characters or limit is invalid
 
         Note:
             This uses Delta Lake's time travel feature to access historical versions.
             History information may be limited depending on table configuration.
         """
+        # Validate table name and limit
+        _validate_identifier(table_name, "table_name")
+        if not isinstance(limit, int) or limit < 1:
+            raise ValueError(f"limit must be a positive integer, got: {limit}")
+        
         conn = self._get_connection()
 
         full_table_name = (
@@ -243,16 +366,26 @@ class TableManager:
         # Query delta log for version history
         # Note: Exact syntax may vary based on DuckDB delta extension version
         try:
+            # Use parameterized query for limit
             result = conn.execute(
-                f"SELECT * FROM delta_log('{full_table_name}') LIMIT {limit}"
+                f"SELECT * FROM delta_log('{full_table_name}') LIMIT ?",
+                [limit]
             ).fetchall()
 
             if conn.description:
                 columns = [desc[0] for desc in conn.description]
                 return [dict(zip(columns, row)) for row in result]
-        except Exception:
-            # If delta_log is not available, return empty list
-            pass
+        except duckdb.CatalogException as e:
+            # delta_log function not available or table doesn't support it
+            # Log the specific error but return empty list gracefully
+            import logging
+            logging.debug(f"delta_log not available for {full_table_name}: {e}")
+            return []
+        except Exception as e:
+            # Unexpected error - log and re-raise
+            import logging
+            logging.error(f"Error retrieving table history for {full_table_name}: {e}")
+            raise
 
         return []
 
@@ -289,9 +422,23 @@ def get_table_manager(
 
     # Format endpoint as Unity Catalog API URL if needed
     if not final_endpoint.startswith("http"):
+        # No protocol provided, add https and API path
         final_endpoint = f"https://{final_endpoint}/api/2.1/unity-catalog"
-    elif "/api/2.1/unity-catalog" not in final_endpoint:
-        final_endpoint = f"{final_endpoint}/api/2.1/unity-catalog"
+    else:
+        # Protocol provided, check if API path is present
+        parsed = urlparse(final_endpoint)
+        if not parsed.path or parsed.path == "/":
+            # No path, add the API path
+            final_endpoint = f"{final_endpoint.rstrip('/')}/api/2.1/unity-catalog"
+        elif not parsed.path.endswith("/api/2.1/unity-catalog"):
+            # Has a path but not the correct one
+            # Check if it's already a proper Unity Catalog endpoint
+            if "/api/2.1/unity-catalog" in parsed.path:
+                # Path contains the endpoint somewhere, use as-is
+                pass
+            else:
+                # Append the API path
+                final_endpoint = f"{final_endpoint.rstrip('/')}/api/2.1/unity-catalog"
 
     config = UnityCatalogConfig(
         token=final_token,
