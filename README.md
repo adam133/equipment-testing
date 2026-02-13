@@ -79,6 +79,9 @@ uv sync
 # Run examples
 uv run python examples.py
 
+# Run the scraper example (demonstrates tractor specs scraping)
+uv run python example_scraper.py
+
 # Start the API server
 uv run openagdb-api
 # Visit http://localhost:8000/docs for interactive API documentation
@@ -177,11 +180,23 @@ print(tractor.model_dump())
 
 ```bash
 # Run a specific spider
-uv run scrapy crawl tractordata
+uv run scrapy crawl quality_farm_supply -o tractors.json
+
+# Run the example scraper script
+uv run python example_scraper.py
 
 # List all available spiders
 uv run scrapy list
 ```
+
+#### Available Spiders
+
+- **quality_farm_supply**: Scrapes tractor specifications from Quality Farm Supply
+  - Supports multiple makes and models
+  - Exports to JSON, CSV, and other formats
+  - See `src/scrapers/spiders/README.md` for details
+- **tractordata**: Template spider (placeholder)
+
 
 ## Development
 
@@ -369,7 +384,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - [x] Set up Scrapy framework
 
 ### Phase 2: Data Collection
-- [ ] Implement manufacturer-specific spiders
+- [x] Implement manufacturer-specific spiders (Quality Farm Supply spider)
+- [ ] Add more data sources and spiders
 - [ ] Add Unity Catalog Delta table integration
 - [x] Configure Unity Catalog connection
 - [ ] Set up automated scraping workflow
