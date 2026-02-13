@@ -73,15 +73,15 @@ for spider_name in all_spiders:
           cat /tmp/functional_spiders.txt
           echo
           
-          # Track failed spiders
-          failed_spiders=""
+          # Track failed spiders in an array
+          failed_spiders=()
           
           # Run each functional spider
           while IFS= read -r spider; do
             echo "Running spider: $spider"
             if ! uv run scrapy crawl "$spider" -o "${spider}_output.json"; then
               echo "ERROR: Spider $spider failed"
-              failed_spiders="${failed_spiders}${spider}\n"
+              failed_spiders+=("$spider")
             else
               echo "SUCCESS: Spider $spider completed"
             fi
@@ -89,10 +89,10 @@ for spider_name in all_spiders:
           done < /tmp/functional_spiders.txt
           
           # Report any failures at the end
-          if [ -n "$failed_spiders" ]; then
+          if [ ${#failed_spiders[@]} -gt 0 ]; then
             echo "=========================================="
             echo "WARNING: Some spiders failed:"
-            echo -e "$failed_spiders"
+            printf '%s\n' "${failed_spiders[@]}"
             echo "=========================================="
             exit 1
           else
