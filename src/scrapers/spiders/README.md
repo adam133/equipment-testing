@@ -18,7 +18,6 @@ The scraper is built using Scrapy and targets `https://www.qualityfarmsupply.com
 ## Files
 
 - `quality_farm_supply.py` - The Scrapy spider implementation
-- `../../../example_scraper.py` - Example script demonstrating usage and output formats
 
 ## Features
 
@@ -57,19 +56,6 @@ process = CrawlerProcess(settings={
 process.crawl(QualityFarmSupplySpider)
 process.start()
 ```
-
-### Run the Example Script
-
-```bash
-# From repository root
-python3 example_scraper.py
-```
-
-The example script demonstrates:
-- Data validation with Pydantic models
-- Exporting to JSON and CSV formats
-- Summary statistics
-- Proper data structure
 
 ## Configuration
 

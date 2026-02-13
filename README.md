@@ -76,12 +76,6 @@ git clone https://github.com/adam133/equipment-testing.git
 cd equipment-testing
 uv sync
 
-# Run examples
-uv run python examples.py
-
-# Run the scraper example (demonstrates tractor specs scraping)
-uv run python example_scraper.py
-
 # Start the API server
 uv run openagdb-api
 # Visit http://localhost:8000/docs for interactive API documentation
@@ -181,9 +175,6 @@ print(tractor.model_dump())
 ```bash
 # Run a specific spider
 uv run scrapy crawl quality_farm_supply -o tractors.json
-
-# Run the example scraper script
-uv run python example_scraper.py
 
 # List all available spiders
 uv run scrapy list

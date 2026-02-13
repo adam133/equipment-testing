@@ -754,7 +754,6 @@ The OpenAg-DB data model provides a flexible, extensible foundation for agricult
 For implementation details, see:
 - `src/core/models.py` - Model definitions
 - `tests/test_models.py` - Usage examples and tests
-- `examples.py` - Practical demonstrations
 - `README.md` - Project overview and setup
 
 ## Version History

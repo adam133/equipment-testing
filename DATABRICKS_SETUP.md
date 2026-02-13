@@ -150,14 +150,6 @@ finally:
 - `pyproject.toml` - Added `duckdb>=1.0.0` dependency
 - `README.md` - Updated documentation
 
-### Archived Files
-
-The following AWS-specific files have been moved to the `archive/` directory:
-- `AWS_CONFIGURATION.md`
-- `AWS_QUICKSTART.md`
-- `terraform/` - Terraform infrastructure code
-- `.github/workflows/deploy-api.yml.example`
-
 ## Security Considerations
 
 ### Token Security

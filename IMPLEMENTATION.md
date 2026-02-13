@@ -137,7 +137,6 @@ equipment-testing/
 │   ├── test_models.py      # 12 model tests
 │   ├── test_api.py         # 13 API tests
 │   └── test_basic.py       # 2 basic tests
-├── examples.py             # Usage demonstrations
 ├── scrapy.cfg             # Scrapy configuration
 ├── pyproject.toml         # Project metadata & dependencies
 └── README.md              # Main documentation
