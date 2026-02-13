@@ -72,8 +72,8 @@ jobs:
                   print(f'Warning: Could not load spider {spider_name}: {e}', file=sys.stderr)
           PYTHON_SCRIPT
           
-          # Remove leading whitespace from each line to fix Python indentation
-          sed 's/^[[:space:]]*//' /tmp/find_spiders_raw.py > /tmp/find_spiders.py
+          # Remove exactly 10 leading spaces from each line (YAML indentation) to fix Python indentation
+          sed 's/^          //' /tmp/find_spiders_raw.py > /tmp/find_spiders.py
           
           python_output=$(uv run python /tmp/find_spiders.py 2>&1)
           python_exit_code=$?
