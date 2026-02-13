@@ -5,13 +5,13 @@ for different types of agricultural equipment (tractors, combines, implements).
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 
-class EquipmentCategory(str, Enum):
+class EquipmentCategory(StrEnum):
     """Category of agricultural equipment."""
 
     TRACTOR = "tractor"
@@ -23,7 +23,7 @@ class EquipmentCategory(str, Enum):
     OTHER = "other"
 
 
-class TransmissionType(str, Enum):
+class TransmissionType(StrEnum):
     """Type of transmission for tractors."""
 
     MANUAL = "manual"
@@ -34,7 +34,7 @@ class TransmissionType(str, Enum):
     OTHER = "other"
 
 
-class SeparatorType(str, Enum):
+class SeparatorType(StrEnum):
     """Type of separator for combines."""
 
     CONVENTIONAL = "conventional"
@@ -42,7 +42,7 @@ class SeparatorType(str, Enum):
     HYBRID = "hybrid"
 
 
-class SprayerBoomType(str, Enum):
+class SprayerBoomType(StrEnum):
     """Type of boom configuration for sprayers."""
 
     RIGID = "rigid"
@@ -271,9 +271,7 @@ class Sprayer(CommonEquipment):
         """Validate that ground_speed_mph_max is not less than ground_speed_mph_min."""
         if v is not None and info.data.get("ground_speed_mph_min") is not None:
             if v < info.data["ground_speed_mph_min"]:
-                raise ValueError(
-                    "ground_speed_mph_max must be >= ground_speed_mph_min"
-                )
+                raise ValueError("ground_speed_mph_max must be >= ground_speed_mph_min")
         return v
 
 

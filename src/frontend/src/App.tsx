@@ -34,18 +34,18 @@ function App() {
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, []);
 
   useEffect(() => {
     // Filter equipment based on category and search query
     let filtered = equipment;
-    
+
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(item => item.category === categoryFilter);
     }
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -55,7 +55,7 @@ function App() {
           item.description?.toLowerCase().includes(query)
       );
     }
-    
+
     setFilteredEquipment(filtered);
   }, [categoryFilter, searchQuery, equipment]);
 
@@ -98,7 +98,7 @@ function App() {
               className="search-input"
             />
           </div>
-          
+
           <div className="category-filters">
             <button
               className={`filter-btn ${categoryFilter === 'all' ? 'active' : ''}`}
@@ -136,7 +136,7 @@ function App() {
                 Showing {filteredEquipment.length} of {equipment.length} equipment
               </p>
             </section>
-            
+
             <section className="equipment-grid">
               {filteredEquipment.length === 0 ? (
                 <div className="no-results">
@@ -144,9 +144,9 @@ function App() {
                 </div>
               ) : (
                 filteredEquipment.map((item) => (
-                  <EquipmentCard 
-                    key={`${item.category}-${item.make}-${item.model}-${item.year_start || 'unknown'}`} 
-                    equipment={item} 
+                  <EquipmentCard
+                    key={`${item.category}-${item.make}-${item.model}-${item.year_start || 'unknown'}`}
+                    equipment={item}
                   />
                 ))
               )}

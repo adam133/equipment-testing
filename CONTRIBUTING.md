@@ -47,10 +47,10 @@ Thank you for your interest in contributing to Equipment Testing! This document 
    ```bash
    # Format code
    uv run ruff format src/ tests/
-   
+
    # Lint code
    uv run ruff check src/ tests/
-   
+
    # Type check
    uv run mypy src/
    ```
