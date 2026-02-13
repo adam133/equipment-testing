@@ -23,7 +23,7 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "scrapy>=2.11.0",
     "httpx>=0.25.0",
-    "databricks-sql-connector>=3.0.0",
+    "duckdb>=1.0.0",
 ]
 
 [project.urls]

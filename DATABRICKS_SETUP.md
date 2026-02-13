@@ -1,20 +1,21 @@
-# Databricks Setup Guide for OpenAg-DB
+# Unity Catalog Setup Guide for OpenAg-DB
 
-This guide explains how to configure OpenAg-DB to use Databricks Delta tables for data storage.
+This guide explains how to configure OpenAg-DB to use Unity Catalog Delta tables via DuckDB.
 
 ## Overview
 
-OpenAg-DB now uses **Databricks Delta tables** instead of AWS S3 for data storage. This provides:
+OpenAg-DB uses **Unity Catalog Delta tables** accessed through **DuckDB** instead of AWS S3 for data storage. This provides:
 - Unified data lakehouse architecture
 - ACID transactions for data reliability
 - Time travel capabilities for historical queries
-- SQL-based queries through Databricks SQL warehouses
+- Lightweight embedded database (no separate SQL warehouse needed)
+- Direct Unity Catalog REST API integration
 - Simplified data management
 
 ## Prerequisites
 
-1. **Databricks Workspace**: Active Databricks workspace (AWS, Azure, or GCP)
-2. **SQL Warehouse**: A running SQL warehouse for query execution
+1. **Databricks Workspace**: Active Databricks workspace (AWS, Azure, or GCP) OR Open Source Unity Catalog server
+2. **Unity Catalog API Access**: Enabled Unity Catalog with REST API access
 3. **Catalog**: The catalog "equip" should be created in your workspace
 
 ## Required Credentials
@@ -25,9 +26,10 @@ Configure the following secrets in your GitHub repository (`Settings` → `Secre
 
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `DATABRICKS_HOST` | Your Databricks workspace hostname | `adb-1234567890123456.7.azuredatabricks.net` |
+| `DATABRICKS_HOST` | Your Databricks workspace hostname or Unity Catalog endpoint | `adb-1234567890123456.7.azuredatabricks.net` |
 | `DATABRICKS_TOKEN` | Personal Access Token for authentication | `dapi1234567890abcdef...` |
-| `DATABRICKS_HTTP_PATH` | SQL warehouse HTTP path | `/sql/1.0/warehouses/abc123def456` |
+
+**Note**: No SQL warehouse or HTTP path is required with the DuckDB approach!
 
 ### How to Get These Values
 
@@ -48,15 +50,6 @@ Create a Personal Access Token (PAT):
 5. Click **Generate new token**
 6. Set an appropriate lifetime (e.g., 90 days)
 7. Copy the token immediately (you won't be able to see it again)
-
-#### 3. DATABRICKS_HTTP_PATH
-
-Get the SQL warehouse HTTP path:
-
-1. In Databricks, go to **SQL Warehouses**
-2. Click on your warehouse
-3. Go to the **Connection details** tab
-4. Copy the **HTTP Path** value (starts with `/sql/1.0/warehouses/`)
 
 ## Catalog Configuration
 
@@ -92,7 +85,6 @@ For local development, set environment variables:
 ```bash
 export DATABRICKS_HOST="your-workspace.databricks.com"
 export DATABRICKS_TOKEN="dapi..."
-export DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/..."
 ```
 
 Or create a `.env` file (remember to add it to `.gitignore`):
@@ -100,12 +92,11 @@ Or create a `.env` file (remember to add it to `.gitignore`):
 ```env
 DATABRICKS_HOST=your-workspace.databricks.com
 DATABRICKS_TOKEN=dapi...
-DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/...
 ```
 
 ## Testing the Connection
 
-You can test the Databricks connection using Python:
+You can test the Unity Catalog connection using Python with DuckDB:
 
 ```python
 from core.databricks_utils import get_table_manager
@@ -128,10 +119,11 @@ finally:
 
 ### What Changed
 
-1. **Storage Backend**: AWS S3 Iceberg tables → Databricks Delta tables
-2. **Connection Method**: AWS SDK → Databricks SQL Connector
-3. **Authentication**: AWS OIDC → Databricks Personal Access Token
-4. **Catalog Structure**: AWS S3 paths → Databricks Unity Catalog
+1. **Storage Backend**: AWS S3 Iceberg tables → Unity Catalog Delta tables
+2. **Connection Method**: AWS SDK → DuckDB with Unity Catalog extension
+3. **Authentication**: AWS OIDC → Unity Catalog API token
+4. **Catalog Structure**: AWS S3 paths → Unity Catalog (catalog.schema.table)
+5. **Query Engine**: SQL warehouse → DuckDB (embedded, lightweight)
 
 ### What Stayed the Same
 
@@ -144,14 +136,14 @@ finally:
 
 ### New Files
 
-- `src/core/databricks_utils.py` - Databricks Delta table utilities
+- `src/core/databricks_utils.py` - Unity Catalog utilities using DuckDB
 
 ### Modified Files
 
 - `src/scrapers/pipelines.py` - Updated to use `DatabricksWriterPipeline`
-- `src/api/main.py` - Updated comments to reference Databricks
-- `.github/workflows/scraper.yml` - Updated to use Databricks credentials
-- `pyproject.toml` - Added `databricks-sql-connector` dependency
+- `src/api/main.py` - Updated comments to reference Unity Catalog
+- `.github/workflows/scraper.yml` - Updated to use Unity Catalog credentials (no HTTP_PATH needed)
+- `pyproject.toml` - Added `duckdb>=1.0.0` dependency
 - `README.md` - Updated documentation
 
 ### Archived Files
@@ -208,36 +200,33 @@ The following AWS-specific files have been moved to the `archive/` directory:
 
 ### General Issues
 
-1. **Verify credentials**: Double-check all three secrets are set correctly
-2. **Check warehouse status**: Ensure SQL warehouse is running
+1. **Verify credentials**: Double-check both secrets are set correctly
+2. **Check catalog exists**: Ensure the "equip" catalog is created
 3. **Review logs**: Check GitHub Actions logs for detailed error messages
 4. **Test locally**: Use the connection test script above
+5. **DuckDB extensions**: Ensure DuckDB can install delta and unity_catalog extensions
 
 ## Monitoring
 
-### SQL Warehouse Monitoring
+### Unity Catalog Monitoring
 
-Monitor warehouse usage in Databricks:
-1. Go to **SQL Warehouses**
-2. Click your warehouse
-3. View the **Monitoring** tab for:
-   - Query history
-   - Performance metrics
-   - Costs
+Monitor usage in Databricks:
+1. Go to **Data** → **Catalogs**
+2. Click on the **equip** catalog
+3. View usage statistics and audit logs
 
 ### Query History
 
-View all queries executed:
-1. Go to **SQL** → **Query History**
-2. Filter by user, warehouse, or time range
-3. Analyze query performance
+View all queries executed via Unity Catalog:
+1. Go to **SQL** → **Query History** (if using Databricks notebooks)
+2. Check Unity Catalog audit logs for API access patterns
 
 ## Cost Optimization
 
-1. **Use serverless SQL warehouses** for automatic scaling
-2. **Set auto-stop** for warehouses when not in use (default: 10 minutes)
-3. **Right-size warehouses** based on workload
-4. **Monitor query costs** regularly
+1. **No SQL warehouse costs** - DuckDB runs locally without compute charges
+2. **API call limits** - Monitor Unity Catalog REST API usage
+3. **Storage costs** - Delta tables stored in cloud storage (S3/Azure/GCS)
+4. **Optimize queries** - DuckDB is very efficient for analytical queries
 
 ## Migration Notes
 
@@ -249,25 +238,29 @@ View all queries executed:
 - Apache Iceberg table management
 - DuckDB query engine
 
-### Benefits of Databricks
+### Benefits of DuckDB + Unity Catalog
 
-1. **Unified Platform**: No need to manage separate storage, compute, and catalog services
-2. **Better Performance**: Optimized Delta Lake format with caching
-3. **ACID Transactions**: Data consistency guaranteed
-4. **Time Travel**: Query historical versions of data
-5. **SQL Analytics**: Built-in query optimization and BI tools
+1. **Lightweight**: No SQL warehouse needed - DuckDB runs embedded in your Python process
+2. **Cost Effective**: No compute charges, only storage and API calls
+3. **Fast**: DuckDB is highly optimized for analytical queries
+4. **ACID Transactions**: Delta Lake format ensures data consistency
+5. **Time Travel**: Query historical versions of data via Delta
+6. **Unified Governance**: Unity Catalog provides centralized access control and audit logs
+7. **No Infrastructure**: No servers to manage or maintain
 
 ## Support
 
 For issues or questions:
 1. Check this documentation
-2. Review Databricks documentation: https://docs.databricks.com/
-3. Open an issue on the GitHub repository
-4. Contact your Databricks administrator
+2. Review Unity Catalog documentation: https://docs.unitycatalog.io/
+3. Review DuckDB documentation: https://duckdb.org/docs/
+4. Open an issue on the GitHub repository
+5. Contact your Databricks administrator
 
 ## Additional Resources
 
-- [Databricks SQL Connector Documentation](https://docs.databricks.com/dev-tools/python-sql-connector.html)
+- [DuckDB Unity Catalog Extension](https://duckdb.org/docs/stable/core_extensions/unity_catalog)
+- [DuckDB Delta Extension](https://duckdb.org/docs/stable/core_extensions/delta)
+- [Unity Catalog Documentation](https://docs.unitycatalog.io/)
 - [Delta Lake Documentation](https://docs.delta.io/)
-- [Unity Catalog Guide](https://docs.databricks.com/data-governance/unity-catalog/)
-- [SQL Warehouses Guide](https://docs.databricks.com/sql/admin/sql-endpoints.html)
+- [Unity Catalog DuckDB Integration](https://docs.unitycatalog.io/integrations/unity-catalog-duckdb/)

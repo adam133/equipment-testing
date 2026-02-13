@@ -35,10 +35,9 @@ jobs:
 
     - name: Run scrapers
       env:
-        # Databricks credentials for data storage
+        # Unity Catalog credentials for DuckDB integration
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
       run: |
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all spiders..."

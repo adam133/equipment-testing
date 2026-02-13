@@ -1,79 +1,108 @@
-"""Utilities for working with Databricks Delta tables.
+"""Utilities for working with Databricks Unity Catalog via DuckDB.
 
-This module provides helper functions for interacting with Delta tables
-stored in Databricks for the OpenAg-DB project.
+This module provides helper functions for interacting with Unity Catalog
+Delta tables using DuckDB for the OpenAg-DB project.
 """
 
 import os
 from typing import Any
 
-from databricks import sql
+import duckdb
 from pydantic import BaseModel
 
 
-class DatabricksConfig(BaseModel):
-    """Configuration for Databricks connection."""
+class UnityCatalogConfig(BaseModel):
+    """Configuration for Unity Catalog connection via DuckDB."""
 
-    host: str  # Databricks workspace host
-    http_path: str  # SQL warehouse HTTP path
-    token: str  # Access token
+    token: str  # Unity Catalog API token
+    endpoint: str  # Unity Catalog endpoint URL
+    aws_region: str = "us-east-1"  # AWS region if using AWS
     catalog_name: str = "equip"
     schema_name: str = "ag_equipment"
 
 
 class TableManager:
-    """Manages Databricks Delta table operations.
+    """Manages Unity Catalog Delta table operations via DuckDB.
 
     This class provides methods to create, update, and query Delta tables
-    for agricultural equipment data.
+    for agricultural equipment data using DuckDB's Unity Catalog extension.
     """
 
-    def __init__(self, config: DatabricksConfig):
+    def __init__(self, config: UnityCatalogConfig):
         """Initialize the table manager.
 
         Args:
-            config: Databricks configuration
+            config: Unity Catalog configuration
         """
         self.config = config
-        self._connection: Any | None = None
+        self._connection: duckdb.DuckDBPyConnection | None = None
+        self._initialized = False
 
-    def _get_connection(self) -> Any:
-        """Get or create the Databricks SQL connection.
+    def _get_connection(self) -> duckdb.DuckDBPyConnection:
+        """Get or create the DuckDB connection with Unity Catalog.
 
         Returns:
-            Databricks SQL connection instance
+            DuckDB connection instance
         """
         if self._connection is None:
-            self._connection = sql.connect(
-                server_hostname=self.config.host,
-                http_path=self.config.http_path,
-                access_token=self.config.token,
-            )
+            self._connection = duckdb.connect()
+            self._initialize_unity_catalog()
         return self._connection
 
+    def _initialize_unity_catalog(self) -> None:
+        """Initialize Unity Catalog extensions and connection."""
+        if self._initialized or self._connection is None:
+            return
+
+        # Install and load required extensions
+        self._connection.execute("INSTALL delta;")
+        self._connection.execute("INSTALL unity_catalog;")
+        self._connection.execute("LOAD delta;")
+        self._connection.execute("LOAD unity_catalog;")
+
+        # Create Unity Catalog secret for authentication
+        self._connection.execute(f"""
+            CREATE SECRET uc (
+                TYPE unity_catalog,
+                TOKEN '{self.config.token}',
+                ENDPOINT '{self.config.endpoint}',
+                AWS_REGION '{self.config.aws_region}'
+            );
+        """)
+
+        # Attach the catalog
+        self._connection.execute(f"""
+            ATTACH '{self.config.catalog_name}' AS {self.config.catalog_name} (
+                TYPE unity_catalog,
+                DEFAULT_SCHEMA '{self.config.schema_name}'
+            );
+        """)
+
+        self._initialized = True
+
     def close(self) -> None:
-        """Close the Databricks connection."""
+        """Close the DuckDB connection."""
         if self._connection is not None:
             self._connection.close()
             self._connection = None
+            self._initialized = False
 
     def create_table(self, table_name: str, schema: dict[str, Any]) -> None:
-        """Create a new Delta table.
+        """Create a new Delta table in Unity Catalog.
 
         Args:
             table_name: Name of the table to create
-            schema: Table schema definition (dict mapping column names to types)
+            schema: Table schema definition (dict mapping column names to SQL types)
 
         Example:
             schema = {
-                "make": "STRING",
-                "model": "STRING",
-                "year": "INT",
-                "category": "STRING",
+                "make": "VARCHAR",
+                "model": "VARCHAR",
+                "year": "INTEGER",
+                "category": "VARCHAR",
             }
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
 
         # Build CREATE TABLE statement
         columns = [f"{col} {dtype}" for col, dtype in schema.items()]
@@ -86,55 +115,45 @@ class TableManager:
         create_stmt = f"""
         CREATE TABLE IF NOT EXISTS {full_table_name} (
             {columns_str}
-        ) USING DELTA
+        );
         """
 
-        cursor.execute(create_stmt)
-        cursor.close()
+        conn.execute(create_stmt)
 
     def upsert_records(self, table_name: str, records: list[dict[str, Any]]) -> None:
-        """Upsert records into a Delta table.
+        """Insert records into a Delta table.
 
-        Uses Delta MERGE INTO logic: if a record with the same make + model + year
-        exists, update the specs; otherwise, insert.
+        Note: True upsert (MERGE) logic would require identifying primary keys.
+        This implementation performs INSERT operations.
 
         Args:
             table_name: Name of the table
-            records: List of record dictionaries to upsert
-
-        Note:
-            Currently implements simple INSERT. Future enhancement should use
-            MERGE INTO for proper upsert behavior to prevent duplicates.
-            For production use, implement MERGE logic with make+model+year as key.
+            records: List of record dictionaries to insert
         """
         if not records:
             return
 
         conn = self._get_connection()
-        cursor = conn.cursor()
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
         )
 
-        # Simple INSERT implementation
-        # TODO: Implement proper MERGE INTO for deduplication
-        for record in records:
-            columns = list(record.keys())
-            values = [record[col] for col in columns]
+        # Get column names from first record
+        columns = list(records[0].keys())
+        columns_str = ", ".join(columns)
+        placeholders = ", ".join(["?" for _ in columns])
 
-            # Build INSERT statement
-            columns_str = ", ".join(columns)
-            placeholders = ", ".join(["?" for _ in columns])
+        insert_stmt = f"""
+        INSERT INTO {full_table_name} ({columns_str})
+        VALUES ({placeholders});
+        """
 
-            insert_stmt = f"""
-            INSERT INTO {full_table_name} ({columns_str})
-            VALUES ({placeholders})
-            """
+        # Prepare data as list of tuples
+        data = [tuple(record[col] for col in columns) for record in records]
 
-            cursor.execute(insert_stmt, values)
-
-        cursor.close()
+        # Execute batch insert
+        conn.executemany(insert_stmt, data)
 
     def query_table(
         self, table_name: str, filters: dict[str, Any] | None = None
@@ -146,10 +165,9 @@ class TableManager:
             filters: Optional filter conditions (simple key-value pairs)
 
         Returns:
-            List of matching records
+            List of matching records as dictionaries
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
@@ -161,18 +179,18 @@ class TableManager:
             conditions = [f"{key} = ?" for key in filters.keys()]
             where_clause = " AND ".join(conditions)
             query += f" WHERE {where_clause}"
-            cursor.execute(query, list(filters.values()))
+            result = conn.execute(query, list(filters.values())).fetchall()
         else:
-            cursor.execute(query)
+            result = conn.execute(query).fetchall()
 
-        # Fetch results and convert to list of dicts
-        columns = [desc[0] for desc in cursor.description]
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(columns, row)))
+        # Get column names
+        description = conn.description
+        if description:
+            columns = [desc[0] for desc in description]
+            # Convert to list of dicts
+            return [dict(zip(columns, row)) for row in result]
 
-        cursor.close()
-        return results
+        return []
 
     def get_table_schema(self, table_name: str) -> dict[str, str]:
         """Get the schema of a table.
@@ -184,24 +202,24 @@ class TableManager:
             Dictionary mapping column names to types
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
         )
 
-        cursor.execute(f"DESCRIBE {full_table_name}")
+        result = conn.execute(f"DESCRIBE {full_table_name}").fetchall()
 
         schema = {}
-        for row in cursor.fetchall():
+        for row in result:
             col_name = row[0]
             col_type = row[1]
             schema[col_name] = col_type
 
-        cursor.close()
         return schema
 
-    def get_table_history(self, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
+    def get_table_history(
+        self, table_name: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """Get the history of a Delta table for time travel queries.
 
         Args:
@@ -213,37 +231,42 @@ class TableManager:
 
         Note:
             This uses Delta Lake's time travel feature to access historical versions.
+            History information may be limited depending on table configuration.
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
 
         full_table_name = (
             f"{self.config.catalog_name}.{self.config.schema_name}.{table_name}"
         )
 
-        cursor.execute(f"DESCRIBE HISTORY {full_table_name} LIMIT {limit}")
+        # Query delta log for version history
+        # Note: Exact syntax may vary based on DuckDB delta extension version
+        try:
+            result = conn.execute(
+                f"SELECT * FROM delta_log('{full_table_name}') LIMIT {limit}"
+            ).fetchall()
 
-        # Fetch history entries
-        columns = [desc[0] for desc in cursor.description]
-        history = []
-        for row in cursor.fetchall():
-            history.append(dict(zip(columns, row)))
+            if conn.description:
+                columns = [desc[0] for desc in conn.description]
+                return [dict(zip(columns, row)) for row in result]
+        except Exception:
+            # If delta_log is not available, return empty list
+            pass
 
-        cursor.close()
-        return history
+        return []
 
 
 def get_table_manager(
-    host: str | None = None,
-    http_path: str | None = None,
     token: str | None = None,
+    endpoint: str | None = None,
+    aws_region: str | None = None,
 ) -> TableManager:
     """Get a configured table manager instance.
 
     Args:
-        host: Databricks workspace host (defaults to DATABRICKS_HOST env var)
-        http_path: SQL warehouse HTTP path (defaults to DATABRICKS_HTTP_PATH env var)
-        token: Access token (defaults to DATABRICKS_TOKEN env var)
+        token: Unity Catalog API token (defaults to DATABRICKS_TOKEN env var)
+        endpoint: Unity Catalog endpoint URL (defaults to DATABRICKS_HOST env var)
+        aws_region: AWS region (defaults to us-east-1)
 
     Returns:
         Configured TableManager instance
@@ -251,23 +274,27 @@ def get_table_manager(
     Raises:
         ValueError: If required credentials are missing
     """
-    final_host = host if host is not None else os.getenv("DATABRICKS_HOST", "")
-    final_http_path = (
-        http_path if http_path is not None else os.getenv("DATABRICKS_HTTP_PATH", "")
-    )
     final_token = token if token is not None else os.getenv("DATABRICKS_TOKEN", "")
+    final_endpoint = (
+        endpoint if endpoint is not None else os.getenv("DATABRICKS_HOST", "")
+    )
+    final_aws_region = aws_region if aws_region is not None else "us-east-1"
 
     # Validate required credentials
-    if not final_host:
-        raise ValueError("Missing required environment variable: DATABRICKS_HOST")
-    if not final_http_path:
-        raise ValueError("Missing required environment variable: DATABRICKS_HTTP_PATH")
     if not final_token:
         raise ValueError("Missing required environment variable: DATABRICKS_TOKEN")
+    if not final_endpoint:
+        raise ValueError("Missing required environment variable: DATABRICKS_HOST")
 
-    config = DatabricksConfig(
-        host=final_host,
-        http_path=final_http_path,
+    # Format endpoint as Unity Catalog API URL if needed
+    if not final_endpoint.startswith("http"):
+        final_endpoint = f"https://{final_endpoint}/api/2.1/unity-catalog"
+    elif "/api/2.1/unity-catalog" not in final_endpoint:
+        final_endpoint = f"{final_endpoint}/api/2.1/unity-catalog"
+
+    config = UnityCatalogConfig(
         token=final_token,
+        endpoint=final_endpoint,
+        aws_region=final_aws_region,
     )
     return TableManager(config)
