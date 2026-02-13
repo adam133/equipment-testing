@@ -257,7 +257,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_endpoint_formatting_with_protocol(self):
         """Test that endpoint with protocol is formatted correctly."""
@@ -269,7 +271,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_endpoint_already_complete(self):
         """Test that complete endpoint is not modified."""
@@ -281,7 +285,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_explicit_parameters(self):
         """Test that explicit parameters override environment variables."""

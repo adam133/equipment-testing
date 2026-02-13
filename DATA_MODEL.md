@@ -268,14 +268,14 @@ class EquipmentCategory(str, Enum):
 
 class ForageHarvester(CommonEquipment):
     """Model for forage harvester equipment."""
-    
+
     category: Literal[EquipmentCategory.FORAGE_HARVESTER] = (
         EquipmentCategory.FORAGE_HARVESTER
     )
-    
+
     # Power
     engine_hp: float | None = Field(None, description="Engine horsepower", ge=0)
-    
+
     # Cutting system
     cutting_width_ft: float | None = Field(
         None, description="Cutting width in feet", ge=0
@@ -283,7 +283,7 @@ class ForageHarvester(CommonEquipment):
     header_rows: int | None = Field(
         None, description="Number of rows for row-crop header", ge=0
     )
-    
+
     # Processing
     chop_length_mm: float | None = Field(
         None, description="Theoretical chop length in mm", ge=0
@@ -291,14 +291,14 @@ class ForageHarvester(CommonEquipment):
     number_of_knives: int | None = Field(
         None, description="Number of cutting knives", ge=0
     )
-    
+
     # Physical
     weight_lbs: float | None = Field(None, description="Operating weight", ge=0)
 
 # Update factory function
 def create_equipment(data: dict) -> Equipment:
     category = data.get("category")
-    
+
     if category == EquipmentCategory.FORAGE_HARVESTER:
         return ForageHarvester(**data)
     # ... other categories
@@ -316,16 +316,16 @@ class CommonEquipment(BaseModel):
     make: str  # Required: Manufacturer/brand
     model: str  # Required: Model designation
     category: EquipmentCategory  # Required: Equipment type
-    
+
     # Hierarchy
     series: str | None  # Optional: Model series/family
     submodel: str | None  # Optional: Configuration variant
     brand: str | None  # Optional: Parent brand/ownership
-    
+
     # Production years
     year_start: int | None  # First production year
     year_end: int | None  # Last production year (None = current)
-    
+
     # Metadata
     description: str | None
     image_url: str | None
@@ -406,10 +406,10 @@ To add new attributes to existing equipment types:
 ```python
 class Tractor(CommonEquipment):
     # ... existing fields ...
-    
+
     # Add new field
     front_pto_hp: float | None = Field(
-        None, 
+        None,
         description="Front Power Take-Off horsepower",
         ge=0
     )
@@ -442,7 +442,7 @@ class SprayerBoomType(str, Enum):
 
 class Sprayer(CommonEquipment):
     boom_type: SprayerBoomType | None = Field(
-        None, 
+        None,
         description="Boom configuration type"
     )
 ```
@@ -476,31 +476,31 @@ tractor = Tractor(
     series="5E Series",
     model="5075E",
     submodel="Premium",
-    
+
     # Years
     year_start=2014,
     year_end=2022,
-    
+
     # Power
     pto_hp=65,
     engine_hp=75,
     rated_rpm=2400,
-    
+
     # Transmission
     transmission_type=TransmissionType.POWERSHIFT,
     forward_gears=12,
     reverse_gears=12,
-    
+
     # Hydraulics
     hydraulic_flow=16.0,
     hydraulic_pressure=3000,
     rear_remote_valves=4,  # Premium package upgrade
     hitch_lift_capacity=6800,
-    
+
     # Physical
     weight_lbs=7700,
     wheelbase_inches=87.8,
-    
+
     # Metadata
     description="Utility tractor with premium cab package",
     source_url="https://www.deere.com/en/tractors/5e-series/",
@@ -517,30 +517,30 @@ sprayer = Sprayer(
     make="John Deere",
     series="R4 Series",
     model="R4045",
-    
+
     # Years
     year_start=2020,
-    
+
     # Power
     engine_hp=405,
     rated_rpm=2100,
-    
+
     # Tank
     tank_capacity_gal=1200,
     tank_material="Polyethylene",
-    
+
     # Boom
     boom_width_ft=120,
     boom_height_ft=60,
     boom_type=SprayerBoomType.FOLDING,
     nozzle_spacing_inches=20,
     number_of_nozzles=72,
-    
+
     # Application
     application_rate_gal_per_acre=15.0,
     ground_speed_mph_max=25.0,
     pump_capacity_gal_min=80.0,
-    
+
     # Physical
     weight_lbs=36000,
     wheelbase_inches=156,
@@ -558,22 +558,22 @@ combine = Combine(
     make="Case IH",
     series="Axial-Flow 250 Series",
     model="8250",
-    
+
     # Years
     year_start=2018,
-    
+
     # Power
     engine_hp=450,
-    
+
     # Separator (series characteristic)
     separator_type=SeparatorType.ROTARY,
     separator_width_inches=44,
-    
+
     # Grain handling
     grain_tank_capacity_bu=350,
     unloading_rate_bu_min=4.5,
     unloading_auger_length_ft=28,
-    
+
     # Physical
     weight_lbs=42000,
 )

@@ -355,7 +355,7 @@ OpenAg-DB uses Pydantic models for data validation and serialization:
 
 - **CommonEquipment**: Base model with fields shared across all equipment
 - **Tractor**: Extends CommonEquipment with tractor-specific fields
-- **Combine**: Extends CommonEquipment with combine-specific fields  
+- **Combine**: Extends CommonEquipment with combine-specific fields
 - **Implement**: Extends CommonEquipment with implement-specific fields
 
 All models support:
