@@ -41,14 +41,15 @@ jobs:
       run: |
         # Function to sanitize spider names for use in filenames
         sanitize_filename() {
-          echo "$1" | tr -cs '[:alnum:]_-' '_'
+          printf '%s\n' "$1" | tr -cs '[:alnum:]_-' '_'
         }
         
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all functional spiders..."
           
           # Get list of functional spiders (with start_urls) in a single Python call
-          if ! uv run python -c "
+          python_output=$(uv run python -c "
+import sys
 from scrapy.utils.project import get_project_settings
 from scrapy.spiderloader import SpiderLoader
 
@@ -64,10 +65,20 @@ for spider_name in all_spiders:
         spider_cls = loader.load(spider_name)
         if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
             print(spider_name)
-    except Exception:
-        pass
-" > /tmp/functional_spiders.txt; then
+    except Exception as e:
+        # Log loading errors to stderr for debugging
+        print(f'Warning: Could not load spider {spider_name}: {e}', file=sys.stderr)
+" 2>&1)
+          python_exit_code=$?
+          
+          # Write functional spiders to file (filter out warnings)
+          echo "$python_output" | grep -v "^Warning:" > /tmp/functional_spiders.txt
+          
+          # Check if Python script failed
+          if [ $python_exit_code -ne 0 ]; then
             echo "ERROR: Failed to detect functional spiders"
+            echo "Python script output:"
+            echo "$python_output"
             echo "This may be due to import errors, permission issues, or configuration problems."
             exit 1
           fi
