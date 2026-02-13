@@ -147,9 +147,14 @@ class TestUnityCatalogWriterPipeline:
     def test_close_spider(self, pipeline, mock_spider):
         """Test close_spider cleanup."""
         pipeline.open_spider(mock_spider)
+        
+        # Add some items to buffer
+        pipeline.items_buffer = [{"test": "item"}]
+        
         pipeline.close_spider(mock_spider)
 
-        # Should not raise any errors
+        # Buffer should be cleared after close
+        assert len(pipeline.items_buffer) == 0
 
     def test_process_item_adds_to_buffer(
         self, pipeline, mock_spider, valid_tractor_item
