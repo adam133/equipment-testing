@@ -41,7 +41,8 @@ jobs:
       run: |
         # Function to sanitize spider names for use in filenames
         sanitize_filename() {
-          printf '%s\n' "$1" | tr -cs '[:alnum:]_-' '_'
+          # Replace special chars with underscore, then trim leading/trailing underscores
+          printf '%s\n' "$1" | tr -cs '[:alnum:]_-' '_' | sed 's/^_*//;s/_*$//'
         }
         
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
@@ -72,7 +73,7 @@ for spider_name in all_spiders:
           python_exit_code=$?
           
           # Write functional spiders to file (filter out warnings)
-          echo "$python_output" | grep -v "^Warning:" > /tmp/functional_spiders.txt
+          echo "$python_output" | grep -v "^Warning:" > /tmp/functional_spiders.txt || true
           
           # Check if Python script failed
           if [ $python_exit_code -ne 0 ]; then
