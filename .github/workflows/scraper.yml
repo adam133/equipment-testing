@@ -42,26 +42,32 @@ jobs:
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all functional spiders..."
           
-          # Get list of all spiders
-          all_spiders=$(uv run scrapy list)
+          # Get list of all spiders and store in temporary file for safe iteration
+          uv run scrapy list > /tmp/spider_list.txt
           
           # Check each spider and run only those with start_urls configured
-          for spider in $all_spiders; do
+          while IFS= read -r spider; do
             echo "Checking spider: $spider"
             
-            # Check if spider has start_urls by attempting to get spider info
-            has_urls=$(uv run python -c "
+            # Check if spider has start_urls using a Python script
+            # Pass spider name as stdin to avoid injection issues
+            has_urls=$(echo "$spider" | uv run python -c "
+import sys
 from scrapy.utils.project import get_project_settings
 from scrapy.spiderloader import SpiderLoader
 
+spider_name = sys.stdin.read().strip()
 settings = get_project_settings()
 loader = SpiderLoader.from_settings(settings)
-spider_cls = loader.load('$spider')
 
-# Check if spider has start_urls
-if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
-    print('yes')
-else:
+try:
+    spider_cls = loader.load(spider_name)
+    # Check if spider has start_urls
+    if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
+        print('yes')
+    else:
+        print('no')
+except Exception:
     print('no')
 " 2>/dev/null || echo "no")
             
@@ -71,23 +77,23 @@ else:
             else
               echo "Skipping spider $spider (no start_urls configured)"
             fi
-          done
+          done < /tmp/spider_list.txt
         else
           # Validate spider name exists before running
           spider_name="${{ github.event.inputs.spider_name }}"
           echo "Validating spider: $spider_name"
           
           # Get list of all available spiders
-          available_spiders=$(uv run scrapy list)
+          uv run scrapy list > /tmp/spider_list.txt
           
           # Check if provided spider name is in the list
           spider_found=false
-          for available_spider in $available_spiders; do
+          while IFS= read -r available_spider; do
             if [ "$available_spider" = "$spider_name" ]; then
               spider_found=true
               break
             fi
-          done
+          done < /tmp/spider_list.txt
           
           if [ "$spider_found" = "true" ]; then
             echo "Running spider: $spider_name"
@@ -95,7 +101,7 @@ else:
           else
             echo "Error: Spider '$spider_name' not found"
             echo "Available spiders:"
-            echo "$available_spiders"
+            cat /tmp/spider_list.txt
             exit 1
           fi
         fi
