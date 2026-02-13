@@ -49,7 +49,7 @@ DEFAULT_REQUEST_HEADERS = {
 # Configure item pipelines
 ITEM_PIPELINES = {
     "scrapers.pipelines.ValidationPipeline": 100,
-    "scrapers.pipelines.IcebergWriterPipeline": 300,
+    "scrapers.pipelines.UnityCatalogWriterPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension
