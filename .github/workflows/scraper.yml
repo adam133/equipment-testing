@@ -40,20 +40,50 @@ jobs:
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       run: |
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
-          echo "Running all spiders..."
-          # Run all spiders (placeholder - would iterate through actual spiders)
-          # uv run scrapy crawl tractordata
+          echo "Running all functional spiders..."
+          
+          # Get list of all spiders
+          all_spiders=$(uv run scrapy list)
+          
+          # Check each spider and run only those with start_urls configured
+          for spider in $all_spiders; do
+            echo "Checking spider: $spider"
+            
+            # Check if spider has start_urls by attempting to get spider info
+            has_urls=$(uv run python -c "
+from scrapy.utils.project import get_project_settings
+from scrapy.spiderloader import SpiderLoader
+
+settings = get_project_settings()
+loader = SpiderLoader.from_settings(settings)
+spider_cls = loader.load('$spider')
+
+# Check if spider has start_urls
+if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
+    print('yes')
+else:
+    print('no')
+" 2>/dev/null || echo "no")
+            
+            if [ "$has_urls" = "yes" ]; then
+              echo "Running spider: $spider"
+              uv run scrapy crawl $spider -o ${spider}_output.json || echo "Spider $spider failed, continuing..."
+            else
+              echo "Skipping spider $spider (no start_urls configured)"
+            fi
+          done
         else
           echo "Running spider: ${{ github.event.inputs.spider_name }}"
-          # uv run scrapy crawl ${{ github.event.inputs.spider_name }}
+          uv run scrapy crawl ${{ github.event.inputs.spider_name }} -o ${{ github.event.inputs.spider_name }}_output.json
         fi
 
-    - name: Upload scraper logs
+    - name: Upload scraper logs and output
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: scraper-logs
         path: |
           *.log
+          *_output.json
           scrapy_*.json
         retention-days: 7
