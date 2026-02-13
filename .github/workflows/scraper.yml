@@ -39,21 +39,128 @@ jobs:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       run: |
+        # Function to sanitize spider names for use in filenames
+        sanitize_filename() {
+          # Replace special chars with underscore, then trim leading/trailing underscores
+          printf '%s\n' "$1" | tr -cs '[:alnum:]_-' '_' | sed 's/^_*//;s/_*$//'
+        }
+        
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
-          echo "Running all spiders..."
-          # Run all spiders (placeholder - would iterate through actual spiders)
-          # uv run scrapy crawl tractordata
+          echo "Running all functional spiders..."
+          
+          # Get list of functional spiders (with start_urls) in a single Python call
+          python_output=$(uv run python -c "
+import sys
+from scrapy.utils.project import get_project_settings
+from scrapy.spiderloader import SpiderLoader
+
+settings = get_project_settings()
+loader = SpiderLoader.from_settings(settings)
+
+# Get all spider names
+all_spiders = loader.list()
+
+# Filter to only spiders with start_urls
+for spider_name in all_spiders:
+    try:
+        spider_cls = loader.load(spider_name)
+        if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
+            print(spider_name)
+    except Exception as e:
+        # Log loading errors to stderr for debugging
+        print(f'Warning: Could not load spider {spider_name}: {e}', file=sys.stderr)
+" 2>&1)
+          python_exit_code=$?
+          
+          # Write functional spiders to file (filter out warnings)
+          echo "$python_output" | grep -v "^Warning:" > /tmp/functional_spiders.txt || true
+          
+          # Check if Python script failed
+          if [ $python_exit_code -ne 0 ]; then
+            echo "ERROR: Failed to detect functional spiders"
+            echo "Python script output:"
+            echo "$python_output"
+            echo "This may be due to import errors, permission issues, or configuration problems."
+            exit 1
+          fi
+          
+          # Check if we found any functional spiders
+          if [ ! -s /tmp/functional_spiders.txt ]; then
+            echo "WARNING: No functional spiders found (no spiders with start_urls configured)"
+            echo "This may indicate a configuration issue or that all spiders are base/template classes."
+            echo "Available spiders (all):"
+            uv run scrapy list
+            exit 1
+          fi
+          
+          echo "Found functional spiders:"
+          cat /tmp/functional_spiders.txt
+          echo
+          
+          # Track failed spiders in an array
+          failed_spiders=()
+          
+          # Run each functional spider
+          while IFS= read -r spider; do
+            echo "Running spider: $spider"
+            # Sanitize spider name for filename
+            safe_spider_name=$(sanitize_filename "$spider")
+            if ! uv run scrapy crawl "$spider" -o "${safe_spider_name}_output.json"; then
+              echo "ERROR: Spider $spider failed"
+              failed_spiders+=("$spider")
+            else
+              echo "SUCCESS: Spider $spider completed"
+            fi
+            echo
+          done < /tmp/functional_spiders.txt
+          
+          # Report any failures at the end
+          if [ ${#failed_spiders[@]} -gt 0 ]; then
+            echo "=========================================="
+            echo "WARNING: Some spiders failed:"
+            printf '%s\n' "${failed_spiders[@]}"
+            echo "=========================================="
+            exit 1
+          else
+            echo "All spiders completed successfully"
+          fi
         else
-          echo "Running spider: ${{ github.event.inputs.spider_name }}"
-          # uv run scrapy crawl ${{ github.event.inputs.spider_name }}
+          # Validate spider name exists before running
+          spider_name="${{ github.event.inputs.spider_name }}"
+          echo "Validating spider: $spider_name"
+          
+          # Get list of all available spiders
+          uv run scrapy list > /tmp/spider_list.txt
+          
+          # Check if provided spider name is in the list
+          spider_found=false
+          while IFS= read -r available_spider; do
+            if [ "$available_spider" = "$spider_name" ]; then
+              spider_found=true
+              break
+            fi
+          done < /tmp/spider_list.txt
+          
+          if [ "$spider_found" = "true" ]; then
+            echo "Running spider: $spider_name"
+            # Sanitize spider name for filename
+            safe_spider_name=$(sanitize_filename "$spider_name")
+            uv run scrapy crawl "$spider_name" -o "${safe_spider_name}_output.json"
+          else
+            echo "Error: Spider '$spider_name' not found"
+            echo "Available spiders:"
+            cat /tmp/spider_list.txt
+            exit 1
+          fi
         fi
 
-    - name: Upload scraper logs
+    - name: Upload scraper logs and output
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: scraper-logs
         path: |
           *.log
+          *_output.json
           scrapy_*.json
         retention-days: 7
