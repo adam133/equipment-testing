@@ -49,7 +49,7 @@ jobs:
           
           # Define spiders to run (spiders with start_urls)
           # Note: We explicitly list functional spiders to avoid running base/template spiders
-          # When adding new spiders, add them to this list separated by spaces
+          # IMPORTANT: When adding new spiders with start_urls, manually add them to this list
           # Example: spiders_to_run="quality_farm_supply another_spider"
           spiders_to_run="quality_farm_supply"
           
