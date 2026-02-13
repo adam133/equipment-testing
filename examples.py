@@ -9,6 +9,8 @@ from core.models import (
     EquipmentCategory,
     Implement,
     SeparatorType,
+    Sprayer,
+    SprayerBoomType,
     Tractor,
     TransmissionType,
 )
@@ -17,13 +19,15 @@ from core.models import (
 def example_tractor():
     """Create and display a tractor example."""
     print("=" * 60)
-    print("Example: Creating a Tractor")
+    print("Example: Creating a Tractor with Hierarchy")
     print("=" * 60)
 
     tractor = Tractor(
+        brand="Deere & Company",
         make="John Deere",
-        model="5075E",
         series="5E Series",
+        model="5075E",
+        submodel="Premium",
         year_start=2014,
         year_end=2022,
         pto_hp=65,
@@ -33,18 +37,21 @@ def example_tractor():
         reverse_gears=12,
         hydraulic_flow=16.0,
         hydraulic_pressure=3000,
-        rear_remote_valves=3,
+        rear_remote_valves=4,  # Premium package
         weight_lbs=7700,
     )
 
-    print(f"\nMake: {tractor.make}")
-    print(f"Model: {tractor.model}")
+    print(f"\nBrand: {tractor.brand}")
+    print(f"Make: {tractor.make}")
     print(f"Series: {tractor.series}")
+    print(f"Model: {tractor.model}")
+    print(f"Submodel: {tractor.submodel}")
     print(f"Years: {tractor.year_start}-{tractor.year_end}")
     print(f"PTO HP: {tractor.pto_hp}")
     print(f"Engine HP: {tractor.engine_hp}")
     print(f"Transmission: {tractor.transmission_type}")
     print(f"Hydraulic Flow: {tractor.hydraulic_flow} GPM")
+    print(f"Remote Valves: {tractor.rear_remote_valves}")
     print(f"Weight: {tractor.weight_lbs} lbs")
 
     return tractor
@@ -110,6 +117,51 @@ def example_implement():
     return planter
 
 
+def example_sprayer():
+    """Create and display a self-propelled sprayer example."""
+    print("\n" + "=" * 60)
+    print("Example: Creating a Self-Propelled Sprayer")
+    print("=" * 60)
+
+    sprayer = Sprayer(
+        brand="CNH Industrial",
+        make="Case IH",
+        series="Patriot Series",
+        model="Patriot 4440",
+        submodel="AirRide",
+        year_start=2020,
+        engine_hp=405,
+        tank_capacity_gal=1200,
+        tank_material="Polyethylene",
+        boom_width_ft=120,
+        boom_height_ft=60,
+        boom_type=SprayerBoomType.FOLDING,
+        nozzle_spacing_inches=20,
+        number_of_nozzles=72,
+        application_rate_gal_per_acre=15.0,
+        pump_capacity_gal_min=80.0,
+        ground_speed_mph_max=25.0,
+        row_crop_capable=True,
+        weight_lbs=36000,
+        wheelbase_inches=156,
+    )
+
+    print(f"\nBrand: {sprayer.brand}")
+    print(f"Make: {sprayer.make}")
+    print(f"Series: {sprayer.series}")
+    print(f"Model: {sprayer.model}")
+    print(f"Submodel: {sprayer.submodel}")
+    print(f"Engine HP: {sprayer.engine_hp}")
+    print(f"Tank Capacity: {sprayer.tank_capacity_gal} gal")
+    print(f"Boom Width: {sprayer.boom_width_ft} ft")
+    print(f"Boom Type: {sprayer.boom_type}")
+    print(f"Number of Nozzles: {sprayer.number_of_nozzles}")
+    print(f"Max Speed: {sprayer.ground_speed_mph_max} MPH")
+    print(f"Row Crop Capable: {sprayer.row_crop_capable}")
+
+    return sprayer
+
+
 def example_json_export(equipment):
     """Demonstrate JSON export."""
     print("\n" + "=" * 60)
@@ -130,10 +182,11 @@ def main():
     # Create examples
     tractor = example_tractor()
     combine = example_combine()
+    sprayer = example_sprayer()
     planter = example_implement()
 
     # Show JSON export
-    example_json_export(tractor)
+    example_json_export(sprayer)
 
     print("\n" + "=" * 60)
     print("Examples Complete!")
