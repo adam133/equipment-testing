@@ -7,10 +7,6 @@ and provides endpoints for user contributions.
 import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
 from core.models import (
     Combine,
     CommonEquipment,
@@ -18,6 +14,9 @@ from core.models import (
     Implement,
     Tractor,
 )
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Initialize FastAPI app
 app = FastAPI(

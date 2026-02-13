@@ -1,15 +1,15 @@
 """Tests for Unity Catalog utilities using DuckDB."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-import duckdb
+from unittest.mock import MagicMock, patch
 
+import duckdb
+import pytest
 from core.databricks_utils import (
     TableManager,
     UnityCatalogConfig,
-    get_table_manager,
     _validate_identifier,
     _validate_sql_type,
+    get_table_manager,
 )
 
 
@@ -256,7 +256,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_endpoint_formatting_with_protocol(self):
         """Test that endpoint with protocol is formatted correctly."""
@@ -268,7 +270,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_endpoint_already_complete(self):
         """Test that complete endpoint is not modified."""
@@ -280,7 +284,9 @@ class TestGetTableManager:
             },
         ):
             manager = get_table_manager()
-            assert manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            assert (
+                manager.config.endpoint == "https://example.com/api/2.1/unity-catalog"
+            )
 
     def test_explicit_parameters(self):
         """Test that explicit parameters override environment variables."""

@@ -9,9 +9,8 @@ from collections.abc import Iterator
 from typing import Any
 
 import scrapy
-from scrapy.http import Response
-
 from core.models import EquipmentCategory
+from scrapy.http import Response
 
 
 class BaseEquipmentSpider(scrapy.Spider):

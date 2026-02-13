@@ -272,19 +272,19 @@ body {
   .app-header h1 {
     font-size: 2rem;
   }
-  
+
   .equipment-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .stats {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .category-filters {
     flex-direction: column;
   }
-  
+
   .filter-btn {
     width: 100%;
   }

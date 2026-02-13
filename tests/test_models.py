@@ -1,8 +1,6 @@
 """Tests for core equipment models."""
 
 import pytest
-from pydantic import ValidationError
-
 from core.models import (
     Combine,
     CommonEquipment,
@@ -13,6 +11,7 @@ from core.models import (
     TransmissionType,
     create_equipment,
 )
+from pydantic import ValidationError
 
 
 def test_common_equipment_creation():

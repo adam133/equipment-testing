@@ -8,7 +8,7 @@ hosted on Databricks, or run as an open-source server.
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import duckdb
 from pydantic import BaseModel
@@ -16,15 +16,15 @@ from pydantic import BaseModel
 
 def _validate_identifier(identifier: str, name: str = "identifier") -> None:
     """Validate that an identifier is safe to use in SQL.
-    
+
     Args:
         identifier: The identifier to validate (table name, column name, etc.)
         name: Description of the identifier for error messages
-        
+
     Raises:
         ValueError: If identifier contains invalid characters
     """
-    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", identifier):
         raise ValueError(
             f"Invalid {name}: '{identifier}'. Must contain only alphanumeric "
             "characters and underscores, and start with a letter or underscore."
@@ -33,15 +33,15 @@ def _validate_identifier(identifier: str, name: str = "identifier") -> None:
 
 def _validate_sql_type(sql_type: str) -> None:
     """Validate that a SQL type is safe to use.
-    
+
     Args:
         sql_type: The SQL type to validate
-        
+
     Raises:
         ValueError: If SQL type contains invalid characters
     """
     # Allow common SQL types with optional parameters
-    if not re.match(r'^[A-Z_][A-Z0-9_]*(\([0-9,\s]+\))?$', sql_type, re.IGNORECASE):
+    if not re.match(r"^[A-Z_][A-Z0-9_]*(\([0-9,\s]+\))?$", sql_type, re.IGNORECASE):
         raise ValueError(
             f"Invalid SQL type: '{sql_type}'. Must be a valid SQL type name."
         )
@@ -153,7 +153,7 @@ class TableManager:
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         # Validate column names and types, then build CREATE TABLE statement
@@ -162,7 +162,7 @@ class TableManager:
             _validate_identifier(col, f"column name '{col}'")
             _validate_sql_type(dtype)
             validated_columns.append(f"{col} {dtype}")
-        
+
         columns_str = ", ".join(validated_columns)
 
         full_table_name = (
@@ -187,7 +187,7 @@ class TableManager:
         Raises:
             ValueError: If table_name or column names contain invalid characters,
                        or if records have inconsistent schemas
-        
+
         Note:
             All records must have the same set of keys. For upsert behavior
             (update if exists, insert if not), use MERGE logic separately.
@@ -197,7 +197,7 @@ class TableManager:
 
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -208,7 +208,7 @@ class TableManager:
         columns = list(records[0].keys())
         for col in columns:
             _validate_identifier(col, f"column name '{col}'")
-        
+
         # Validate that all records have the same keys
         first_keys = set(records[0].keys())
         for i, record in enumerate(records[1:], start=1):
@@ -222,7 +222,7 @@ class TableManager:
                 if extra:
                     error_msg += f"Extra keys: {extra}."
                 raise ValueError(error_msg)
-        
+
         columns_str = ", ".join(columns)
         placeholders = ", ".join(["?" for _ in columns])
 
@@ -248,13 +248,13 @@ class TableManager:
 
         Returns:
             List of matching records as dictionaries
-            
+
         Raises:
             ValueError: If table_name or filter keys contain invalid characters
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -298,7 +298,7 @@ class TableManager:
         if description:
             columns = [desc[0] for desc in description]
             # Convert to list of dicts
-            return [dict(zip(columns, row)) for row in result]
+            return [dict(zip(columns, row, strict=False)) for row in result]
 
         return []
 
@@ -310,13 +310,13 @@ class TableManager:
 
         Returns:
             Dictionary mapping column names to types
-            
+
         Raises:
             ValueError: If table_name contains invalid characters
         """
         # Validate table name
         _validate_identifier(table_name, "table_name")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -340,11 +340,12 @@ class TableManager:
 
         Args:
             table_name: Name of the table
-            limit: Maximum number of history entries to return (must be positive integer)
+            limit: Maximum number of history entries to return
+                (must be positive integer)
 
         Returns:
             List of table history entries
-            
+
         Raises:
             ValueError: If table_name contains invalid characters or limit is invalid
 
@@ -356,7 +357,7 @@ class TableManager:
         _validate_identifier(table_name, "table_name")
         if not isinstance(limit, int) or limit < 1:
             raise ValueError(f"limit must be a positive integer, got: {limit}")
-        
+
         conn = self._get_connection()
 
         full_table_name = (
@@ -368,22 +369,23 @@ class TableManager:
         try:
             # Use parameterized query for limit
             result = conn.execute(
-                f"SELECT * FROM delta_log('{full_table_name}') LIMIT ?",
-                [limit]
+                f"SELECT * FROM delta_log('{full_table_name}') LIMIT ?", [limit]
             ).fetchall()
 
             if conn.description:
                 columns = [desc[0] for desc in conn.description]
-                return [dict(zip(columns, row)) for row in result]
+                return [dict(zip(columns, row, strict=False)) for row in result]
         except duckdb.CatalogException as e:
             # delta_log function not available or table doesn't support it
             # Log the specific error but return empty list gracefully
             import logging
+
             logging.debug(f"delta_log not available for {full_table_name}: {e}")
             return []
         except Exception as e:
             # Unexpected error - log and re-raise
             import logging
+
             logging.error(f"Error retrieving table history for {full_table_name}: {e}")
             raise
 

@@ -6,7 +6,6 @@ and work with the OpenAg-DB API.
 
 from core.models import (
     Combine,
-    EquipmentCategory,
     Implement,
     SeparatorType,
     Tractor,
@@ -14,7 +13,7 @@ from core.models import (
 )
 
 
-def example_tractor():
+def example_tractor() -> Tractor:
     """Create and display a tractor example."""
     print("=" * 60)
     print("Example: Creating a Tractor")
@@ -50,7 +49,7 @@ def example_tractor():
     return tractor
 
 
-def example_combine():
+def example_combine() -> Combine:
     """Create and display a combine example."""
     print("\n" + "=" * 60)
     print("Example: Creating a Combine")
@@ -81,7 +80,7 @@ def example_combine():
     return combine
 
 
-def example_implement():
+def example_implement() -> Implement:
     """Create and display an implement example."""
     print("\n" + "=" * 60)
     print("Example: Creating an Implement (Planter)")
@@ -110,7 +109,7 @@ def example_implement():
     return planter
 
 
-def example_json_export(equipment):
+def example_json_export(equipment: Tractor | Combine | Implement) -> None:
     """Demonstrate JSON export."""
     print("\n" + "=" * 60)
     print("Example: Exporting to JSON")
@@ -123,7 +122,7 @@ def example_json_export(equipment):
     print(json.dumps(data, indent=2, default=str))
 
 
-def main():
+def main() -> None:
     """Run all examples."""
     print("\n🌾 OpenAg-DB - Agricultural Equipment Database Examples 🌾\n")
 
@@ -132,8 +131,10 @@ def main():
     combine = example_combine()
     planter = example_implement()
 
-    # Show JSON export
+    # Show JSON export for all examples
     example_json_export(tractor)
+    example_json_export(combine)
+    example_json_export(planter)
 
     print("\n" + "=" * 60)
     print("Examples Complete!")

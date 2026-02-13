@@ -5,18 +5,19 @@ Pipelines:
 2. UnityCatalogWriterPipeline - Writes validated data to Unity Catalog Delta tables
 """
 
-from pydantic import ValidationError
-from scrapy import Spider
-from scrapy.exceptions import DropItem
+from typing import Any, cast
 
 from core.databricks_utils import TableManager
 from core.models import create_equipment
+from pydantic import ValidationError
+from scrapy import Spider
+from scrapy.exceptions import DropItem
 
 
 class ValidationPipeline:
     """Validate scraped items using Pydantic models."""
 
-    def process_item(self, item: dict, spider: Spider) -> dict:
+    def process_item(self, item: dict[str, Any], spider: Spider) -> dict[str, Any]:
         """Process and validate an item.
 
         Args:
@@ -34,7 +35,9 @@ class ValidationPipeline:
             equipment = create_equipment(item)
 
             # Convert back to dict for further processing
-            validated_item = equipment.model_dump()
+            validated_item: dict[str, Any] = cast(
+                dict[str, Any], equipment.model_dump()
+            )
 
             spider.logger.info(
                 f"Validated {item.get('make')} {item.get('model')} "
