@@ -49,6 +49,7 @@ jobs:
           
           # Define spiders to run (spiders with start_urls)
           # Note: We explicitly list functional spiders to avoid running base/template spiders
+          # When adding new spiders, add them to this list separated by spaces
           spiders_to_run="quality_farm_supply"
           
           # Track failures
@@ -59,7 +60,7 @@ jobs:
             echo "Running spider: $spider"
             if ! uv run scrapy crawl "$spider" -o "${spider}_output.json"; then
               echo "ERROR: Spider $spider failed"
-              failed_spiders="${failed_spiders} ${spider}"
+              failed_spiders="${failed_spiders:+$failed_spiders }${spider}"
             else
               echo "SUCCESS: Spider $spider completed"
             fi
