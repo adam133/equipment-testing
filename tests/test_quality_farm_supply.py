@@ -1,6 +1,5 @@
 """Tests for the Quality Farm Supply spider."""
 
-
 import pytest
 from scrapy.http import HtmlResponse
 

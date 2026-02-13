@@ -71,7 +71,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         for make in self.known_makes:
             if title.startswith(make):
                 # Everything after the make is the model
-                model = title[len(make):].strip()
+                model = title[len(make) :].strip()
                 if model:
                     return make, model
 
@@ -95,9 +95,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
         # Strategy 1: If the page has a table of tractors
         # Look for common table structures
-        tractor_rows = response.css("table.specs-table tr") or response.css(
-            "table tr"
-        )
+        tractor_rows = response.css("table.specs-table tr") or response.css("table tr")
 
         if tractor_rows:
             # Parse table-based layout
@@ -109,15 +107,11 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 yield from self._parse_cards(response, tractor_cards)
             else:
                 # Strategy 3: Try to find links to individual tractor pages
-                tractor_links = response.css(
-                    'a[href*="tractor"]::attr(href)'
-                ).getall()
+                tractor_links = response.css('a[href*="tractor"]::attr(href)').getall()
                 for link in tractor_links[:10]:  # Limit to first 10 for example
                     yield response.follow(link, callback=self.parse_tractor_detail)
 
-    def _parse_table(
-        self, response: Response, rows: Any
-    ) -> Iterator[dict[str, Any]]:
+    def _parse_table(self, response: Response, rows: Any) -> Iterator[dict[str, Any]]:
         """Parse tractor data from a table structure.
 
         Args:
@@ -166,9 +160,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
                 yield self.create_equipment_item(**item_data)
 
-    def _parse_cards(
-        self, response: Response, cards: Any
-    ) -> Iterator[dict[str, Any]]:
+    def _parse_cards(self, response: Response, cards: Any) -> Iterator[dict[str, Any]]:
         """Parse tractor data from card/section layout.
 
         Args:
@@ -273,9 +265,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
                 if "engine" in key and "hp" in key:
                     try:
-                        item_data["engine_hp"] = float(
-                            value.replace("HP", "").strip()
-                        )
+                        item_data["engine_hp"] = float(value.replace("HP", "").strip())
                     except ValueError:
                         pass
                 elif "pto" in key and "hp" in key:
