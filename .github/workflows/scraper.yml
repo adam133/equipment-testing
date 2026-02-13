@@ -39,11 +39,16 @@ jobs:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       run: |
+        # Function to sanitize spider names for use in filenames
+        sanitize_filename() {
+          echo "$1" | tr -cs '[:alnum:]_-' '_'
+        }
+        
         if [ -z "${{ github.event.inputs.spider_name }}" ]; then
           echo "Running all functional spiders..."
           
           # Get list of functional spiders (with start_urls) in a single Python call
-          uv run python -c "
+          if ! uv run python -c "
 from scrapy.utils.project import get_project_settings
 from scrapy.spiderloader import SpiderLoader
 
@@ -61,12 +66,16 @@ for spider_name in all_spiders:
             print(spider_name)
     except Exception:
         pass
-" > /tmp/functional_spiders.txt
+" > /tmp/functional_spiders.txt; then
+            echo "ERROR: Failed to detect functional spiders"
+            echo "This may be due to import errors, permission issues, or configuration problems."
+            exit 1
+          fi
           
           # Check if we found any functional spiders
           if [ ! -s /tmp/functional_spiders.txt ]; then
             echo "WARNING: No functional spiders found (no spiders with start_urls configured)"
-            echo "This may indicate a configuration issue."
+            echo "This may indicate a configuration issue or that all spiders are base/template classes."
             echo "Available spiders (all):"
             uv run scrapy list
             exit 1
@@ -82,8 +91,8 @@ for spider_name in all_spiders:
           # Run each functional spider
           while IFS= read -r spider; do
             echo "Running spider: $spider"
-            # Sanitize spider name for filename (replace non-alphanumeric with underscore)
-            safe_spider_name=$(echo "$spider" | tr -cs '[:alnum:]_-' '_')
+            # Sanitize spider name for filename
+            safe_spider_name=$(sanitize_filename "$spider")
             if ! uv run scrapy crawl "$spider" -o "${safe_spider_name}_output.json"; then
               echo "ERROR: Spider $spider failed"
               failed_spiders+=("$spider")
@@ -122,8 +131,8 @@ for spider_name in all_spiders:
           
           if [ "$spider_found" = "true" ]; then
             echo "Running spider: $spider_name"
-            # Sanitize spider name for filename (replace non-alphanumeric with underscore)
-            safe_spider_name=$(echo "$spider_name" | tr -cs '[:alnum:]_-' '_')
+            # Sanitize spider name for filename
+            safe_spider_name=$(sanitize_filename "$spider_name")
             uv run scrapy crawl "$spider_name" -o "${safe_spider_name}_output.json"
           else
             echo "Error: Spider '$spider_name' not found"
