@@ -65,8 +65,11 @@ for spider_name in all_spiders:
           
           # Check if we found any functional spiders
           if [ ! -s /tmp/functional_spiders.txt ]; then
-            echo "No functional spiders found (no spiders with start_urls configured)"
-            exit 0
+            echo "WARNING: No functional spiders found (no spiders with start_urls configured)"
+            echo "This may indicate a configuration issue."
+            echo "Available spiders (all):"
+            uv run scrapy list
+            exit 1
           fi
           
           echo "Found functional spiders:"
@@ -79,7 +82,9 @@ for spider_name in all_spiders:
           # Run each functional spider
           while IFS= read -r spider; do
             echo "Running spider: $spider"
-            if ! uv run scrapy crawl "$spider" -o "${spider}_output.json"; then
+            # Sanitize spider name for filename (replace non-alphanumeric with underscore)
+            safe_spider_name=$(echo "$spider" | tr -cs '[:alnum:]_-' '_')
+            if ! uv run scrapy crawl "$spider" -o "${safe_spider_name}_output.json"; then
               echo "ERROR: Spider $spider failed"
               failed_spiders+=("$spider")
             else
@@ -117,7 +122,9 @@ for spider_name in all_spiders:
           
           if [ "$spider_found" = "true" ]; then
             echo "Running spider: $spider_name"
-            uv run scrapy crawl "$spider_name" -o "${spider_name}_output.json"
+            # Sanitize spider name for filename (replace non-alphanumeric with underscore)
+            safe_spider_name=$(echo "$spider_name" | tr -cs '[:alnum:]_-' '_')
+            uv run scrapy crawl "$spider_name" -o "${safe_spider_name}_output.json"
           else
             echo "Error: Spider '$spider_name' not found"
             echo "Available spiders:"
