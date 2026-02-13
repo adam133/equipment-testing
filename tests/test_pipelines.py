@@ -200,6 +200,7 @@ class TestUnityCatalogWriterPipeline:
         # After close, buffer should be empty (even if write failed due to no
         # connection). The _write_batch method clears the buffer regardless of
         # write success
+        assert len(pipeline.items_buffer) == 0
 
 
 class TestPipelineConfiguration:
