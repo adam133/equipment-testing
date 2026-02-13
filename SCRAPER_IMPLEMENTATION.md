@@ -22,24 +22,7 @@ A robust Scrapy spider that:
 - **Data validation**: All scraped data validated through the `Tractor` Pydantic model
 - **Configurable filtering**: Easy to filter by specific manufacturers via `target_makes` list
 
-### 2. Example Script
-**File:** `example_scraper.py`
-
-A demonstration script that shows:
-- How to use the spider
-- Example output with 5 different tractor models
-- Data export to JSON and CSV formats
-- Summary statistics (averages, counts, etc.)
-- Clear usage instructions
-
-**Sample Data Included:**
-- John Deere 5075E (75 HP)
-- John Deere 6120M (120 HP)
-- Case IH Farmall 75C (75 HP)
-- New Holland T4.75 (75 HP)
-- Kubota M7-172 (170 HP)
-
-### 3. Comprehensive Tests
+### 2. Comprehensive Tests
 **File:** `tests/test_quality_farm_supply.py`
 
 16 tests covering:
@@ -127,13 +110,6 @@ process = CrawlerProcess(settings={
 })
 process.crawl(QualityFarmSupplySpider)
 process.start()
-```
-
-### Example Script
-
-```bash
-# From repository root
-PYTHONPATH=src python3 example_scraper.py
 ```
 
 ## Technical Highlights
