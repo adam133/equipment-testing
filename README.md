@@ -17,7 +17,7 @@ The frontend is currently deployed with mock data for demonstration purposes. It
 OpenAg-DB is designed to be the go-to resource for agricultural equipment specifications, built on modern data infrastructure:
 
 - **Data Model**: Pydantic models with polymorphic support for different equipment types
-- **Storage**: Databricks Delta tables for versioned, queryable data
+- **Storage**: Unity Catalog Delta tables for versioned, queryable data
 - **API**: FastAPI backend for serving equipment data
 - **Scrapers**: Polite, scheduled Scrapy spiders for data collection
 - **Frontend**: React + Vite + Shadcn UI for searchable interface
@@ -30,7 +30,7 @@ OpenAg-DB/
 ├── src/
 │   ├── api/           # FastAPI backend
 │   ├── scrapers/      # Scrapy spiders for data collection
-│   ├── core/          # Pydantic models & Databricks utilities
+│   ├── core/          # Pydantic models & Unity Catalog utilities
 │   └── frontend/      # React/Vite static site
 ├── .github/workflows/ # CI/CD and scheduled scrapers
 └── tests/            # Pytest test suite
@@ -40,7 +40,7 @@ OpenAg-DB/
 
 1. **Collection**: Scrapy spiders collect equipment data from manufacturer websites
 2. **Validation**: All data validated against Pydantic models
-3. **Storage**: Data written to Delta tables in Databricks
+3. **Storage**: Data written to Delta tables in Unity Catalog
 4. **Query**: FastAPI serves data to frontend
 5. **Contribution**: Users suggest corrections via GitHub Issues
 
@@ -109,7 +109,7 @@ npm run build
 - Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 - Node.js 22+ (for frontend development)
-- Databricks workspace with access token (for data storage in production)
+- Unity Catalog endpoint with access token (for data storage in production)
 
 ## Installation
 
@@ -197,7 +197,7 @@ equipment-testing/
 │   │   └── main.py      # API endpoints
 │   ├── core/            # Core data models
 │   │   ├── models.py    # Pydantic equipment models
-│   │   └── databricks_utils.py  # Databricks Delta table utilities
+│   │   └── databricks_utils.py  # Unity Catalog utilities
 │   ├── scrapers/        # Scrapy data collection
 │   │   ├── spiders/     # Spider implementations
 │   │   ├── pipelines.py # Data processing pipelines
@@ -370,12 +370,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Phase 2: Data Collection
 - [ ] Implement manufacturer-specific spiders
-- [ ] Add Databricks Delta table integration
-- [x] Configure Databricks connection
+- [ ] Add Unity Catalog Delta table integration
+- [x] Configure Unity Catalog connection
 - [ ] Set up automated scraping workflow
 
 ### Phase 3: API & Query Layer
-- [ ] Integrate Databricks SQL for queries
+- [ ] Integrate DuckDB for queries
 - [ ] Add authentication/rate limiting
 - [ ] Implement contribution workflow
 - [ ] Deploy API to production
@@ -400,7 +400,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - **Data Models**: Pydantic
 - **API Framework**: FastAPI
 - **Scraping**: Scrapy
-- **Storage**: Databricks Delta tables
+- **Storage**: Unity Catalog Delta tables
+- **Query Engine**: DuckDB
 - **Frontend**: React + Vite + Shadcn UI
 - **CI/CD**: GitHub Actions
 - **Hosting**: TBD (API) + GitHub Pages (Frontend)

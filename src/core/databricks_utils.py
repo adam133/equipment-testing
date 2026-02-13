@@ -1,7 +1,8 @@
-"""Utilities for working with Databricks Unity Catalog via DuckDB.
+"""Utilities for working with Unity Catalog via DuckDB.
 
 This module provides helper functions for interacting with Unity Catalog
-Delta tables using DuckDB for the OpenAg-DB project.
+Delta tables using DuckDB for the OpenAg-DB project. Unity Catalog can be
+hosted on Databricks, or run as an open-source server.
 """
 
 import os
@@ -16,7 +17,7 @@ class UnityCatalogConfig(BaseModel):
 
     token: str  # Unity Catalog API token
     endpoint: str  # Unity Catalog endpoint URL
-    aws_region: str = "us-east-1"  # AWS region if using AWS
+    aws_region: str = "us-east-1"  # Cloud region (AWS/Azure/GCP)
     catalog_name: str = "equip"
     schema_name: str = "ag_equipment"
 
@@ -266,7 +267,7 @@ def get_table_manager(
     Args:
         token: Unity Catalog API token (defaults to DATABRICKS_TOKEN env var)
         endpoint: Unity Catalog endpoint URL (defaults to DATABRICKS_HOST env var)
-        aws_region: AWS region (defaults to us-east-1)
+        aws_region: Cloud region (defaults to us-east-1)
 
     Returns:
         Configured TableManager instance

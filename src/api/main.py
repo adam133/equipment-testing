@@ -1,6 +1,6 @@
 """Main FastAPI application for OpenAg-DB API.
 
-This API serves agricultural equipment data from Databricks Delta tables
+This API serves agricultural equipment data from Unity Catalog Delta tables
 and provides endpoints for user contributions.
 """
 
@@ -120,12 +120,12 @@ async def list_equipment(
         List of equipment matching filters
 
     Note:
-        This is a placeholder. Actual implementation would query Databricks
-        Delta tables using the databricks_utils module.
+        This is a placeholder. Actual implementation would query Unity Catalog
+        Delta tables using the databricks_utils module (DuckDB).
     """
     # Placeholder for actual query logic
     # In production, this would:
-    # 1. Connect to Databricks using databricks_utils
+    # 1. Connect to Unity Catalog using databricks_utils (DuckDB)
     # 2. Build SQL query with filters
     # 3. Execute query and return results
     return []
@@ -213,7 +213,7 @@ async def get_equipment(equipment_id: str) -> CommonEquipment:
         HTTPException: If equipment not found
     """
     # Placeholder for single item retrieval
-    # In production, query by ID from Databricks Delta table
+    # In production, query by ID from Unity Catalog Delta table
     raise HTTPException(status_code=404, detail="Equipment not found")
 
 

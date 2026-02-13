@@ -2,7 +2,7 @@
 
 Pipelines:
 1. ValidationPipeline - Validates items against Pydantic models
-2. DatabricksWriterPipeline - Writes validated data to Databricks Delta tables
+2. UnityCatalogWriterPipeline - Writes validated data to Unity Catalog Delta tables
 """
 
 from typing import Any
@@ -53,10 +53,11 @@ class ValidationPipeline:
             raise DropItem(f"Validation failed: {e}") from e
 
 
-class DatabricksWriterPipeline:
-    """Write validated items to Databricks Delta tables.
+class UnityCatalogWriterPipeline:
+    """Write validated items to Unity Catalog Delta tables.
 
-    This pipeline stages validated equipment data for writing to Databricks.
+    This pipeline stages validated equipment data for writing to Unity Catalog
+    using DuckDB.
     """
 
     def __init__(self) -> None:
@@ -71,18 +72,18 @@ class DatabricksWriterPipeline:
         Args:
             spider: The spider being opened
         """
-        spider.logger.info("Databricks writer pipeline opened")
+        spider.logger.info("Unity Catalog writer pipeline opened")
         self.items_buffer = []
 
-        # Initialize Databricks connection
+        # Initialize Unity Catalog connection
         try:
             from core.databricks_utils import get_table_manager
 
             self.table_manager = get_table_manager()
-            spider.logger.info("Connected to Databricks")
+            spider.logger.info("Connected to Unity Catalog")
         except Exception as e:
             spider.logger.warning(
-                f"Could not connect to Databricks: {e}. "
+                f"Could not connect to Unity Catalog: {e}. "
                 "Items will be buffered but not written."
             )
 
@@ -95,15 +96,15 @@ class DatabricksWriterPipeline:
         if self.items_buffer:
             self._write_batch(spider)
 
-        # Close Databricks connection
+        # Close Unity Catalog connection
         if self.table_manager:
             try:
                 self.table_manager.close()
-                spider.logger.info("Closed Databricks connection")
+                spider.logger.info("Closed Unity Catalog connection")
             except Exception as e:
-                spider.logger.warning(f"Error closing Databricks connection: {e}")
+                spider.logger.warning(f"Error closing Unity Catalog connection: {e}")
 
-        spider.logger.info("Databricks writer pipeline closed")
+        spider.logger.info("Unity Catalog writer pipeline closed")
 
     def process_item(self, item: dict, spider: Spider) -> dict:
         """Process an item by adding it to the buffer.
@@ -123,13 +124,13 @@ class DatabricksWriterPipeline:
         return item
 
     def _write_batch(self, spider: Spider) -> None:
-        """Write buffered items to Databricks Delta table.
+        """Write buffered items to Unity Catalog Delta table.
 
         Args:
             spider: Spider instance for logging
         """
         spider.logger.info(
-            f"Writing batch of {len(self.items_buffer)} items to Databricks"
+            f"Writing batch of {len(self.items_buffer)} items to Unity Catalog"
         )
 
         if not self.table_manager:
@@ -161,6 +162,6 @@ class DatabricksWriterPipeline:
                 spider.logger.info(f"Wrote {len(implements)} implements")
 
         except Exception as e:
-            spider.logger.error(f"Error writing batch to Databricks: {e}")
+            spider.logger.error(f"Error writing batch to Unity Catalog: {e}")
 
         self.items_buffer = []

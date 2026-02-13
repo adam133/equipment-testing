@@ -47,7 +47,7 @@ This document summarizes the implementation of OpenAg-DB, a public, community-dr
   - Base spider template (`BaseEquipmentSpider`)
   - Settings configured for polite crawling
   - ValidationPipeline for Pydantic validation
-  - DatabricksWriterPipeline for data storage
+  - UnityCatalogWriterPipeline for data storage
   - Example spider (`TractorDataSpider`)
 - GitHub Actions workflow for weekly scraping
 - Scrapy configuration file
@@ -95,8 +95,8 @@ This document summarizes the implementation of OpenAg-DB, a public, community-dr
 | Testing | Pytest | 9.0.2 |
 | Linting | Ruff | 0.14.9 |
 | Type Checking | Mypy | 1.19.0 |
-| Data Lake | Databricks SQL Connector | 3.0.0+ (configured) |
-| Delta Tables | PyArrow | 14.0.0+ (optional) |
+| Data Lake | DuckDB | 1.0.0+ |
+| Query Engine | DuckDB Unity Catalog | Extension |
 
 ## Code Quality Metrics
 
@@ -121,7 +121,7 @@ equipment-testing/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── models.py       # Pydantic models (245 lines)
-│   │   └── databricks_utils.py # Databricks utilities
+│   │   └── databricks_utils.py # Unity Catalog utilities
 │   ├── scrapers/
 │   │   ├── __init__.py
 │   │   ├── settings.py     # Scrapy settings
@@ -185,11 +185,10 @@ The application supports the following environment variables:
 |----------|-------------|---------|
 | `ENVIRONMENT` | Runtime environment | (none) |
 | `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:3000,http://localhost:5173` |
-| `DATABRICKS_HOST` | Databricks workspace host | (none) |
-| `DATABRICKS_TOKEN` | Databricks access token | (none) |
-| `DATABRICKS_HTTP_PATH` | SQL warehouse HTTP path | (none) |
+| `DATABRICKS_HOST` | Unity Catalog endpoint (can be Databricks or OSS) | (none) |
+| `DATABRICKS_TOKEN` | Unity Catalog API token | (none) |
 
-**Note**: Databricks credentials are securely managed via GitHub Secrets in production.
+**Note**: Unity Catalog credentials are securely managed via GitHub Secrets in production.
 
 ## Usage Examples
 
@@ -260,7 +259,7 @@ uv run scrapy crawl tractordata
 ## Future Enhancements
 
 ### Immediate Next Steps
-1. Implement actual Databricks Delta table integration
+1. Implement actual Unity Catalog Delta table integration
 2. Create manufacturer-specific scrapers
 3. Build React frontend with Vite
 4. Deploy API to production
@@ -297,5 +296,6 @@ MIT License - See LICENSE file for details
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Pydantic Documentation](https://docs.pydantic.dev/)
 - [Scrapy Documentation](https://docs.scrapy.org/)
-- [Databricks Documentation](https://docs.databricks.com/)
+- [Unity Catalog Documentation](https://docs.unitycatalog.io/)
+- [DuckDB Documentation](https://duckdb.org/docs/)
 - [uv Documentation](https://docs.astral.sh/uv/)

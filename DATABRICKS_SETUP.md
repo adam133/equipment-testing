@@ -14,9 +14,9 @@ OpenAg-DB uses **Unity Catalog Delta tables** accessed through **DuckDB** instea
 
 ## Prerequisites
 
-1. **Databricks Workspace**: Active Databricks workspace (AWS, Azure, or GCP) OR Open Source Unity Catalog server
+1. **Unity Catalog Server**: Active Unity Catalog server (can be hosted on Databricks, AWS, Azure, GCP, or open-source)
 2. **Unity Catalog API Access**: Enabled Unity Catalog with REST API access
-3. **Catalog**: The catalog "equip" should be created in your workspace
+3. **Catalog**: The catalog "equip" should be created in your Unity Catalog instance
 
 ## Required Credentials
 
@@ -26,23 +26,24 @@ Configure the following secrets in your GitHub repository (`Settings` → `Secre
 
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `DATABRICKS_HOST` | Your Databricks workspace hostname or Unity Catalog endpoint | `adb-1234567890123456.7.azuredatabricks.net` |
-| `DATABRICKS_TOKEN` | Personal Access Token for authentication | `dapi1234567890abcdef...` |
+| `DATABRICKS_HOST` | Unity Catalog endpoint URL | `adb-1234567890123456.7.azuredatabricks.net` or `your-uc-server.com` |
+| `DATABRICKS_TOKEN` | Unity Catalog API token | `dapi1234567890abcdef...` |
 
-**Note**: No SQL warehouse or HTTP path is required with the DuckDB approach!
+**Note**: The `DATABRICKS_HOST` and `DATABRICKS_TOKEN` environment variables are used for backward compatibility, but they connect to Unity Catalog (which can be hosted on Databricks or elsewhere). No SQL warehouse is required!
 
 ### How to Get These Values
 
-#### 1. DATABRICKS_HOST
+#### 1. DATABRICKS_HOST (Unity Catalog Endpoint)
 
-This is your workspace URL without the protocol:
-- Example: If your workspace URL is `https://adb-1234567890123456.7.azuredatabricks.net/`, 
-  then `DATABRICKS_HOST` is `adb-1234567890123456.7.azuredatabricks.net`
+This is your Unity Catalog endpoint URL without the protocol:
+- **If using Databricks**: Your workspace URL (e.g., `adb-1234567890123456.7.azuredatabricks.net`)
+- **If using open-source Unity Catalog**: Your server hostname (e.g., `unitycatalog.mycompany.com`)
 
-#### 2. DATABRICKS_TOKEN
+#### 2. DATABRICKS_TOKEN (Unity Catalog API Token)
 
-Create a Personal Access Token (PAT):
+Create an API token for Unity Catalog access:
 
+**For Databricks-hosted Unity Catalog:**
 1. Log into your Databricks workspace
 2. Click your username in the top right corner
 3. Select **User Settings**
@@ -50,6 +51,9 @@ Create a Personal Access Token (PAT):
 5. Click **Generate new token**
 6. Set an appropriate lifetime (e.g., 90 days)
 7. Copy the token immediately (you won't be able to see it again)
+
+**For open-source Unity Catalog:**
+- Follow your Unity Catalog server's authentication setup
 
 ## Catalog Configuration
 
@@ -168,7 +172,7 @@ The following AWS-specific files have been moved to the `archive/` directory:
 
 - Grant minimum required permissions to the catalog
 - Use separate catalogs/schemas for dev, staging, and prod
-- Enable audit logging in Databricks
+- Enable audit logging in Unity Catalog
 - Use IP access lists if required
 
 ### Network Security
@@ -181,14 +185,14 @@ The following AWS-specific files have been moved to the `archive/` directory:
 
 ### Connection Errors
 
-**Error**: `Could not connect to Databricks: Invalid access token`
+**Error**: `Could not connect to Unity Catalog: Invalid access token`
 - **Solution**: Verify your `DATABRICKS_TOKEN` is correct and not expired
 
 **Error**: `Catalog 'equip' does not exist`
 - **Solution**: Create the catalog using the SQL commands above
 
-**Error**: `SQL warehouse is not running`
-- **Solution**: Start your SQL warehouse in the Databricks console
+**Error**: `DuckDB extension installation failed`
+- **Solution**: Ensure you have internet access for DuckDB to download extensions
 
 ### Permission Errors
 
@@ -210,16 +214,17 @@ The following AWS-specific files have been moved to the `archive/` directory:
 
 ### Unity Catalog Monitoring
 
-Monitor usage in Databricks:
-1. Go to **Data** → **Catalogs**
-2. Click on the **equip** catalog
-3. View usage statistics and audit logs
+Monitor usage in Unity Catalog:
+1. Access your Unity Catalog admin interface
+2. Navigate to **Data** → **Catalogs**
+3. Click on the **equip** catalog
+4. View usage statistics and audit logs
 
 ### Query History
 
 View all queries executed via Unity Catalog:
-1. Go to **SQL** → **Query History** (if using Databricks notebooks)
-2. Check Unity Catalog audit logs for API access patterns
+1. Check Unity Catalog audit logs for API access patterns
+2. Review query history in your Unity Catalog admin interface (if available)
 
 ## Cost Optimization
 
@@ -255,7 +260,7 @@ For issues or questions:
 2. Review Unity Catalog documentation: https://docs.unitycatalog.io/
 3. Review DuckDB documentation: https://duckdb.org/docs/
 4. Open an issue on the GitHub repository
-5. Contact your Databricks administrator
+5. Contact your Unity Catalog administrator
 
 ## Additional Resources
 
