@@ -49,27 +49,33 @@ jobs:
           echo "Running all functional spiders..."
           
           # Get list of functional spiders (with start_urls) in a single Python call
-          python_output=$(uv run python -c "
-import sys
-from scrapy.utils.project import get_project_settings
-from scrapy.spiderloader import SpiderLoader
-
-settings = get_project_settings()
-loader = SpiderLoader.from_settings(settings)
-
-# Get all spider names
-all_spiders = loader.list()
-
-# Filter to only spiders with start_urls
-for spider_name in all_spiders:
-    try:
-        spider_cls = loader.load(spider_name)
-        if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
-            print(spider_name)
-    except Exception as e:
-        # Log loading errors to stderr for debugging
-        print(f'Warning: Could not load spider {spider_name}: {e}', file=sys.stderr)
-" 2>&1)
+          # Create temporary Python script (heredoc content needs YAML indentation but we strip it for Python)
+          cat > /tmp/find_spiders_raw.py << 'PYTHON_SCRIPT'
+          import sys
+          from scrapy.utils.project import get_project_settings
+          from scrapy.spiderloader import SpiderLoader
+          
+          settings = get_project_settings()
+          loader = SpiderLoader.from_settings(settings)
+          
+          # Get all spider names
+          all_spiders = loader.list()
+          
+          # Filter to only spiders with start_urls
+          for spider_name in all_spiders:
+              try:
+                  spider_cls = loader.load(spider_name)
+                  if hasattr(spider_cls, 'start_urls') and spider_cls.start_urls:
+                      print(spider_name)
+              except Exception as e:
+                  # Log loading errors to stderr for debugging
+                  print(f'Warning: Could not load spider {spider_name}: {e}', file=sys.stderr)
+          PYTHON_SCRIPT
+          
+          # Remove exactly 10 leading spaces from each line (YAML indentation) to fix Python indentation
+          sed 's/^          //' /tmp/find_spiders_raw.py > /tmp/find_spiders.py
+          
+          python_output=$(uv run python /tmp/find_spiders.py 2>&1)
           python_exit_code=$?
           
           # Write functional spiders to file (filter out warnings)
