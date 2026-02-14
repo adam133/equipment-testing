@@ -4,6 +4,7 @@ This API serves agricultural equipment data from Unity Catalog Delta tables
 and provides endpoints for user contributions.
 """
 
+import logging
 import os
 from typing import Any
 
@@ -11,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from core.databricks_utils import get_table_manager
 from core.models import (
     Combine,
     CommonEquipment,
@@ -18,6 +20,33 @@ from core.models import (
     Implement,
     Tractor,
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Global table manager instance (will be None if Unity Catalog is not configured)
+_table_manager = None
+
+
+def get_unity_catalog_manager() -> Any:
+    """Get or create Unity Catalog table manager.
+
+    Returns:
+        TableManager instance if Unity Catalog is configured, None otherwise
+    """
+    global _table_manager
+    if _table_manager is None:
+        try:
+            _table_manager = get_table_manager()
+            logger.info("Unity Catalog connection established")
+        except (ValueError, Exception) as e:
+            logger.warning(
+                f"Unity Catalog not configured or connection failed: {e}. "
+                "API will return empty results."
+            )
+            _table_manager = None
+    return _table_manager
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -118,17 +147,75 @@ async def list_equipment(
 
     Returns:
         List of equipment matching filters
-
-    Note:
-        This is a placeholder. Actual implementation would query Unity Catalog
-        Delta tables using the databricks_utils module (DuckDB).
     """
-    # Placeholder for actual query logic
-    # In production, this would:
-    # 1. Connect to Unity Catalog using databricks_utils (DuckDB)
-    # 2. Build SQL query with filters
-    # 3. Execute query and return results
-    return []
+    manager = get_unity_catalog_manager()
+    if manager is None:
+        logger.warning("Unity Catalog not configured, returning empty list")
+        return []
+
+    try:
+        # Build filters dictionary
+        filters: dict[str, Any] = {}
+        if make:
+            filters["make"] = make
+        if model:
+            filters["model"] = model
+
+        # Determine which tables to query based on category
+        results: list[CommonEquipment] = []
+
+        if category is None or category == EquipmentCategory.TRACTOR:
+            try:
+                tractor_data = manager.query_table("tractors", filters)
+                results.extend([Tractor(**record) for record in tractor_data])
+            except Exception as e:
+                logger.warning(f"Failed to query tractors table: {e}")
+
+        if category is None or category == EquipmentCategory.COMBINE:
+            try:
+                combine_data = manager.query_table("combines", filters)
+                results.extend([Combine(**record) for record in combine_data])
+            except Exception as e:
+                logger.warning(f"Failed to query combines table: {e}")
+
+        if category is None or category == EquipmentCategory.IMPLEMENT:
+            try:
+                implement_data = manager.query_table("implements", filters)
+                results.extend([Implement(**record) for record in implement_data])
+            except Exception as e:
+                logger.warning(f"Failed to query implements table: {e}")
+
+        # Apply year filters if provided
+        if year_min or year_max:
+            results = [
+                item
+                for item in results
+                if (
+                    year_min is None
+                    or (item.year_start and item.year_start >= year_min)
+                )
+                and (
+                    year_max is None
+                    or (item.year_end and item.year_end <= year_max)
+                    or (item.year_start and item.year_start <= year_max)
+                )
+            ]
+
+        # Apply pagination
+        total = len(results)
+        results = results[offset : offset + limit]
+
+        logger.info(
+            f"Returning {len(results)} of {total} equipment items "
+            f"(limit={limit}, offset={offset})"
+        )
+        return results
+
+    except Exception as e:
+        logger.error(f"Error querying equipment: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to query equipment database"
+        ) from e
 
 
 @app.get("/equipment/tractors", response_model=list[Tractor])
@@ -151,8 +238,40 @@ async def list_tractors(
     Returns:
         List of tractors matching filters
     """
-    # Placeholder for tractor-specific query
-    return []
+    manager = get_unity_catalog_manager()
+    if manager is None:
+        logger.warning("Unity Catalog not configured, returning empty list")
+        return []
+
+    try:
+        filters: dict[str, Any] = {}
+        if make:
+            filters["make"] = make
+
+        tractor_data = manager.query_table("tractors", filters)
+        tractors = [Tractor(**record) for record in tractor_data]
+
+        # Apply horsepower filters
+        if hp_min or hp_max:
+            tractors = [
+                t
+                for t in tractors
+                if (hp_min is None or (t.engine_hp and t.engine_hp >= hp_min))
+                and (hp_max is None or (t.engine_hp and t.engine_hp <= hp_max))
+            ]
+
+        # Apply pagination
+        total = len(tractors)
+        tractors = tractors[offset : offset + limit]
+
+        logger.info(f"Returning {len(tractors)} of {total} tractors")
+        return tractors
+
+    except Exception as e:
+        logger.error(f"Error querying tractors: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to query tractors database"
+        ) from e
 
 
 @app.get("/equipment/combines", response_model=list[Combine])
@@ -173,8 +292,40 @@ async def list_combines(
     Returns:
         List of combines matching filters
     """
-    # Placeholder for combine-specific query
-    return []
+    manager = get_unity_catalog_manager()
+    if manager is None:
+        logger.warning("Unity Catalog not configured, returning empty list")
+        return []
+
+    try:
+        filters: dict[str, Any] = {}
+        if make:
+            filters["make"] = make
+
+        combine_data = manager.query_table("combines", filters)
+        combines = [Combine(**record) for record in combine_data]
+
+        # Apply tank capacity filter
+        if tank_capacity_min:
+            combines = [
+                c
+                for c in combines
+                if c.grain_tank_capacity_bu
+                and c.grain_tank_capacity_bu >= tank_capacity_min
+            ]
+
+        # Apply pagination
+        total = len(combines)
+        combines = combines[offset : offset + limit]
+
+        logger.info(f"Returning {len(combines)} of {total} combines")
+        return combines
+
+    except Exception as e:
+        logger.error(f"Error querying combines: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to query combines database"
+        ) from e
 
 
 @app.get("/equipment/implements", response_model=list[Implement])
@@ -195,8 +346,39 @@ async def list_implements(
     Returns:
         List of implements matching filters
     """
-    # Placeholder for implement-specific query
-    return []
+    manager = get_unity_catalog_manager()
+    if manager is None:
+        logger.warning("Unity Catalog not configured, returning empty list")
+        return []
+
+    try:
+        filters: dict[str, Any] = {}
+        if make:
+            filters["make"] = make
+
+        implement_data = manager.query_table("implements", filters)
+        implements = [Implement(**record) for record in implement_data]
+
+        # Apply width filter
+        if width_min:
+            implements = [
+                i
+                for i in implements
+                if i.working_width_ft and i.working_width_ft >= width_min
+            ]
+
+        # Apply pagination
+        total = len(implements)
+        implements = implements[offset : offset + limit]
+
+        logger.info(f"Returning {len(implements)} of {total} implements")
+        return implements
+
+    except Exception as e:
+        logger.error(f"Error querying implements: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to query implements database"
+        ) from e
 
 
 @app.get("/equipment/{equipment_id}", response_model=CommonEquipment)
@@ -253,18 +435,59 @@ async def get_statistics() -> dict[str, Any]:
 
     Returns:
         Statistics about the equipment database
-
-    Note:
-        This is a placeholder for actual statistics gathering.
     """
-    return {
-        "total_equipment": 0,
-        "tractors": 0,
-        "combines": 0,
-        "implements": 0,
-        "manufacturers": 0,
-        "last_updated": None,
-    }
+    manager = get_unity_catalog_manager()
+    if manager is None:
+        logger.warning("Unity Catalog not configured, returning zero stats")
+        return {
+            "total_equipment": 0,
+            "tractors": 0,
+            "combines": 0,
+            "implements": 0,
+            "manufacturers": 0,
+            "last_updated": None,
+        }
+
+    try:
+        # Query each table to get counts
+        tractor_count = 0
+        combine_count = 0
+        implement_count = 0
+
+        try:
+            tractors = manager.query_table("tractors")
+            tractor_count = len(tractors)
+        except Exception as e:
+            logger.warning(f"Failed to count tractors: {e}")
+
+        try:
+            combines = manager.query_table("combines")
+            combine_count = len(combines)
+        except Exception as e:
+            logger.warning(f"Failed to count combines: {e}")
+
+        try:
+            implements = manager.query_table("implements")
+            implement_count = len(implements)
+        except Exception as e:
+            logger.warning(f"Failed to count implements: {e}")
+
+        total = tractor_count + combine_count + implement_count
+
+        return {
+            "total_equipment": total,
+            "tractors": tractor_count,
+            "combines": combine_count,
+            "implements": implement_count,
+            "manufacturers": 0,  # TODO: Calculate unique manufacturers
+            "last_updated": None,  # TODO: Get last update timestamp
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting statistics: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to get database statistics"
+        ) from e
 
 
 def main() -> None:
