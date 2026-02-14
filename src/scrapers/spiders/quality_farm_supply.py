@@ -2,11 +2,13 @@
 
 This spider scrapes tractor data from qualityfarmsupply.com/pages/tractor-specs.
 It loops through multiple makes and models and returns data in a structured format.
+This spider uses Playwright to handle dynamic JavaScript-based form navigation.
 """
 
 from collections.abc import Iterator
 from typing import Any
 
+from scrapy import Request
 from scrapy.http import Response
 
 from core.models import EquipmentCategory
@@ -26,7 +28,8 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
     - Weight
     - Other specifications
 
-    The page typically has a table or structured layout with tractor specs.
+    The page uses JavaScript for form-based filtering, so Playwright is required
+    to interact with the make/model filters and load dynamic content.
     """
 
     name = "quality_farm_supply"
@@ -34,6 +37,18 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
     start_urls = ["https://www.qualityfarmsupply.com/pages/tractor-specs"]
 
     default_category = EquipmentCategory.TRACTOR
+
+    # Custom settings to ensure Playwright is enabled for this spider
+    custom_settings = {
+        "DOWNLOAD_HANDLERS": {
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+        "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+        "PLAYWRIGHT_LAUNCH_OPTIONS": {
+            "headless": True,
+        },
+    }
 
     # Example makes to filter for (can be customized)
     target_makes = ["John Deere", "Case IH", "New Holland", "Kubota", "Massey Ferguson"]
@@ -82,17 +97,134 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
         return None
 
-    def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    def start_requests(self) -> Iterator[Any]:
+        """Generate initial requests with Playwright enabled.
+
+        This method creates requests that use Playwright to render JavaScript
+        and interact with the page's form elements.
+
+        Yields:
+            Scrapy requests with Playwright meta options
+        """
+        for url in self.start_urls:
+            yield self._make_playwright_request(url, callback=self.parse)
+
+    def _make_playwright_request(
+        self, url: str, callback: Any, make: str | None = None
+    ) -> Any:
+        """Create a Scrapy request with Playwright options.
+
+        Args:
+            url: URL to request
+            callback: Callback function for the response
+            make: Optional manufacturer name to filter by
+
+        Returns:
+            Scrapy Request with Playwright meta options
+        """
+        # Playwright page actions to execute
+        playwright_page_actions = []
+
+        if make:
+            # Actions to select a specific make from the filter
+            playwright_page_actions = [
+                # Wait for the page to load
+                "page.wait_for_load_state('networkidle')",
+                # Wait for filter elements to be available
+                (
+                    "page.wait_for_selector("
+                    "'select, .filter-select, [data-filter-make]', "
+                    "timeout=10000)"
+                ),
+                # Try to find and click the make filter dropdown
+                f"page.evaluate('() => {{ "
+                f"  const selects = document.querySelectorAll('select'); "
+                f"  for (const select of selects) {{ "
+                f"    const options = Array.from(select.options); "
+                f'    const option = options.find(opt => opt.text.includes("{make}")); '
+                f"    if (option) {{ "
+                f"      select.value = option.value; "
+                f"      select.dispatchEvent("
+                f"        new Event('change', {{ bubbles: true }})"
+                f"      ); "
+                f"      return true; "
+                f"    }} "
+                f"  }} "
+                f"  return false; "
+                f"}}')",
+                # Wait for results to load after filtering
+                "page.wait_for_timeout(2000)",
+            ]
+        else:
+            # Just wait for the page to fully load
+            playwright_page_actions = [
+                "page.wait_for_load_state('networkidle')",
+                # Wait a bit for any dynamic content to render
+                "page.wait_for_timeout(2000)",
+            ]
+
+        return Request(
+            url=url,
+            callback=callback,
+            # Don't filter duplicate requests when we have a make filter
+            # since each request is actually unique (different make filter + actions)
+            dont_filter=make is not None,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_actions": playwright_page_actions,
+                "errback": self.errback_close_page,
+                "make_filter": make,
+            },
+        )
+
+    async def errback_close_page(self, failure: Any) -> None:
+        """Error callback to close Playwright page on failure.
+
+        Args:
+            failure: Scrapy failure object
+        """
+        page = failure.request.meta.get("playwright_page")
+        if page:
+            await page.close()
+        self.logger.error(f"Error processing {failure.request.url}: {failure}")
+
+    def parse(self, response: Response) -> Iterator[dict[str, Any] | Any]:
         """Parse the main tractor specs page.
+
+        This method handles both initial page load and filtered results.
+        If no make filter is active, it will iterate through target makes
+        and make separate requests for each one.
 
         Args:
             response: HTTP response from the tractor specs page
 
         Yields:
-            Tractor specification items
+            Tractor specification items or new requests for filtered results
         """
-        self.logger.info(f"Parsing tractor specs from {response.url}")
+        make_filter = response.meta.get("make_filter")
 
+        self.logger.info(
+            f"Parsing tractor specs from {response.url}"
+            + (f" (filtered by {make_filter})" if make_filter else "")
+        )
+
+        # Note: Playwright page cleanup is handled automatically by scrapy-playwright
+        # No manual page.close() needed here
+
+        # If we haven't applied a make filter yet, iterate through target makes
+        if not make_filter and self.target_makes:
+            self.logger.info(
+                f"No make filter active. Will iterate through "
+                f"{len(self.target_makes)} target makes."
+            )
+            for make in self.target_makes:
+                yield self._make_playwright_request(
+                    response.url, callback=self.parse, make=make
+                )
+            return
+
+        # Parse the filtered results
         # Strategy 1: If the page has a table of tractors
         # Look for common table structures
         tractor_rows = response.css("table.specs-table tr") or response.css("table tr")
@@ -106,10 +238,34 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             if tractor_cards:
                 yield from self._parse_cards(response, tractor_cards)
             else:
-                # Strategy 3: Try to find links to individual tractor pages
-                tractor_links = response.css('a[href*="tractor"]::attr(href)').getall()
-                for link in tractor_links[:10]:  # Limit to first 10 for example
-                    yield response.follow(link, callback=self.parse_tractor_detail)
+                # Strategy 3: Try to find any divs or sections with tractordata
+                # Look for common patterns in product listings
+                product_items = response.css(
+                    "div[class*='product'], div[class*='item'], "
+                    "div[class*='tractor'], li[class*='product']"
+                )
+                if product_items:
+                    self.logger.info(
+                        f"Found {len(product_items)} potential product items"
+                    )
+                    yield from self._parse_cards(response, product_items)
+                else:
+                    # Strategy 4: Try to find links to individual tractor pages
+                    tractor_links = response.css(
+                        'a[href*="tractor"]::attr(href)'
+                    ).getall()
+                    if tractor_links:
+                        self.logger.info(f"Found {len(tractor_links)} tractor links")
+                        for link in tractor_links[:10]:  # Limit to first 10 for example
+                            yield response.follow(
+                                link, callback=self.parse_tractor_detail
+                            )
+                    else:
+                        self.logger.warning(
+                            f"No tractors found on page. "
+                            f"Page might have different structure. "
+                            f"First 500 chars of body: {response.text[:500]}"
+                        )
 
     def _parse_table(self, response: Response, rows: Any) -> Iterator[dict[str, Any]]:
         """Parse tractor data from a table structure.
@@ -136,7 +292,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                     continue
 
                 # Extract other fields based on table structure
-                item_data = {
+                item_data: dict[str, Any] = {
                     "make": make,
                     "model": model,
                     "category": EquipmentCategory.TRACTOR,
@@ -189,7 +345,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 if self.target_makes and make not in self.target_makes:
                     continue
 
-                item_data = {
+                item_data: dict[str, Any] = {
                     "make": make,
                     "model": model,
                     "category": EquipmentCategory.TRACTOR,
@@ -248,7 +404,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         if self.target_makes and make not in self.target_makes:
             return
 
-        item_data = {
+        item_data: dict[str, Any] = {
             "make": make,
             "model": model,
             "category": EquipmentCategory.TRACTOR,
