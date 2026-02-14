@@ -297,6 +297,6 @@ class TestGetTableManager:
                 endpoint="https://explicit.com",
                 aws_region="eu-west-1",
             )
-            assert manager.config.token == "explicit_token"
+            assert manager.config.token == "Bearer explicit_token"
             assert "explicit.com" in manager.config.endpoint
             assert manager.config.aws_region == "eu-west-1"
