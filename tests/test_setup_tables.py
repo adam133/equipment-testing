@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+from pydantic import Field
+
 from core.models import Combine, Implement, Sprayer, Tractor
 from core.setup_tables import (
     get_schema_from_model,
@@ -16,29 +18,21 @@ class TestPydanticToSqlType:
 
     def test_str_type(self):
         """Test string type conversion."""
-        from pydantic import Field
-
         field_info = Field(default=None)
         assert pydantic_to_sql_type(field_info, str) == "VARCHAR"
 
     def test_int_type(self):
         """Test integer type conversion."""
-        from pydantic import Field
-
         field_info = Field(default=None)
         assert pydantic_to_sql_type(field_info, int) == "INTEGER"
 
     def test_float_type(self):
         """Test float type conversion."""
-        from pydantic import Field
-
         field_info = Field(default=None)
         assert pydantic_to_sql_type(field_info, float) == "DOUBLE"
 
     def test_bool_type(self):
         """Test boolean type conversion."""
-        from pydantic import Field
-
         field_info = Field(default=None)
         assert pydantic_to_sql_type(field_info, bool) == "BOOLEAN"
 
