@@ -24,7 +24,9 @@ The scraper is built using Scrapy with Playwright integration and targets `https
 ## Features
 
 - **Playwright integration**: Handles JavaScript-rendered content and form navigation
-- **Dynamic form filtering**: Automatically iterates through manufacturer filters to extract data
+- **Dynamic form filtering**: Automatically iterates through manufacturer and model filters to extract data
+- **Model selection**: For each make, iterates through the first 5 models in the dropdown
+- **DOM verification**: Verifies the page structure for model attributes before extracting data
 - **Multiple parsing strategies**: Handles different page layouts (tables, cards, detail pages)
 - **Data validation**: Uses Pydantic models for type checking and validation
 - **Flexible filtering**: Can filter by specific manufacturers
@@ -156,14 +158,54 @@ The spider implements multiple parsing strategies to handle different page layou
 ### How Form Navigation Works
 
 1. Spider loads the initial page with Playwright
-2. If no make filter is active, it generates requests for each target make
-3. For each make, Playwright:
+2. If no make filter is active, it generates requests for each target make and model combination
+3. For each make and model, Playwright:
    - Waits for the page to load completely (`networkidle`)
    - Locates filter select elements
    - Selects the desired make from the dropdown
-   - Triggers the change event to load filtered results
-   - Waits for results to render
-4. Spider then parses the filtered HTML content using the appropriate strategy
+   - Triggers the change event to populate the model dropdown
+   - Waits for the model dropdown to populate
+   - Selects the desired model by index (first 5 models)
+   - Triggers the change event to load model-specific attributes
+   - Waits for attributes to render
+4. Spider verifies the DOM structure contains model attributes
+5. Spider extracts model-specific data using the `parse_model_data` method
+
+### Model Selection Details
+
+The spider iterates through the **first 5 models** for each manufacturer. This is controlled in the `parse` method:
+
+```python
+for make in self.target_makes:
+    # For each make, iterate through first 5 models
+    for model_idx in range(5):
+        yield self._make_playwright_request(
+            response.url,
+            callback=self.parse_model_data,
+            make=make,
+            model_index=model_idx,
+        )
+```
+
+The model index is 0-based and represents the position in the model dropdown (after skipping the first placeholder option like "Select Model").
+
+### DOM Structure Verification
+
+The spider verifies that the page structure contains model attributes before extracting data. It looks for common attribute containers:
+
+- `.attributes`, `.specs`, `.specifications`, `.details` class selectors
+- `div[class*='attribute']` and `div[class*='spec']` pattern matching
+
+If no attributes container is found, the spider logs a warning:
+```
+No attributes container found for {make} model {model_index}.
+Expected DOM structure with class 'attributes', 'specs', or 'specifications'.
+```
+
+The spider then attempts to extract specifications from multiple formats:
+1. **Definition lists** (`<dl>`, `<dt>`, `<dd>`)
+2. **Attribute items** (`.spec-item`, `.attribute-item`)
+3. **Table rows** (`<tr>`, `<td>`)
 
 ## Best Practices
 
