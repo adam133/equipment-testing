@@ -19,7 +19,6 @@ from core.models import (
     EquipmentCategory,
     Implement,
     Tractor,
-    create_equipment,
 )
 
 # Configure logging
@@ -30,7 +29,7 @@ logger = logging.getLogger(__name__)
 _table_manager = None
 
 
-def get_unity_catalog_manager():
+def get_unity_catalog_manager() -> Any:
     """Get or create Unity Catalog table manager.
 
     Returns:
@@ -191,7 +190,10 @@ async def list_equipment(
             results = [
                 item
                 for item in results
-                if (year_min is None or (item.year_start and item.year_start >= year_min))
+                if (
+                    year_min is None
+                    or (item.year_start and item.year_start >= year_min)
+                )
                 and (
                     year_max is None
                     or (item.year_end and item.year_end <= year_max)
@@ -211,7 +213,9 @@ async def list_equipment(
 
     except Exception as e:
         logger.error(f"Error querying equipment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to query equipment database")
+        raise HTTPException(
+            status_code=500, detail="Failed to query equipment database"
+        ) from e
 
 
 @app.get("/equipment/tractors", response_model=list[Tractor])
@@ -265,7 +269,9 @@ async def list_tractors(
 
     except Exception as e:
         logger.error(f"Error querying tractors: {e}")
-        raise HTTPException(status_code=500, detail="Failed to query tractors database")
+        raise HTTPException(
+            status_code=500, detail="Failed to query tractors database"
+        ) from e
 
 
 @app.get("/equipment/combines", response_model=list[Combine])
@@ -317,7 +323,9 @@ async def list_combines(
 
     except Exception as e:
         logger.error(f"Error querying combines: {e}")
-        raise HTTPException(status_code=500, detail="Failed to query combines database")
+        raise HTTPException(
+            status_code=500, detail="Failed to query combines database"
+        ) from e
 
 
 @app.get("/equipment/implements", response_model=list[Implement])
@@ -368,7 +376,9 @@ async def list_implements(
 
     except Exception as e:
         logger.error(f"Error querying implements: {e}")
-        raise HTTPException(status_code=500, detail="Failed to query implements database")
+        raise HTTPException(
+            status_code=500, detail="Failed to query implements database"
+        ) from e
 
 
 @app.get("/equipment/{equipment_id}", response_model=CommonEquipment)
@@ -475,7 +485,9 @@ async def get_statistics() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error getting statistics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get database statistics")
+        raise HTTPException(
+            status_code=500, detail="Failed to get database statistics"
+        ) from e
 
 
 def main() -> None:
