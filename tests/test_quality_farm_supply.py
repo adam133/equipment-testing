@@ -542,9 +542,7 @@ def test_extract_specs_from_container_definition_list(spider):
         </dl>
     </div>
     """
-    response = HtmlResponse(
-        url="http://test.com", body=html, encoding="utf-8"
-    )
+    response = HtmlResponse(url="http://test.com", body=html, encoding="utf-8")
     container = response.css(".specs")
 
     item_data: dict[str, Any] = {}
@@ -570,9 +568,7 @@ def test_extract_specs_from_container_table(spider):
         </table>
     </div>
     """
-    response = HtmlResponse(
-        url="http://test.com", body=html, encoding="utf-8"
-    )
+    response = HtmlResponse(url="http://test.com", body=html, encoding="utf-8")
     container = response.css(".specifications")
 
     item_data: dict[str, Any] = {}

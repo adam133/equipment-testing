@@ -319,9 +319,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                     return
 
             # Strategy 2: Look for structured attribute list
-            attribute_items = container.css(
-                ".attribute-item, .spec-item, dt, tr"
-            )
+            attribute_items = container.css(".attribute-item, .spec-item, dt, tr")
             if attribute_items and len(attribute_items) > 2:
                 # Found structured attributes, try to extract model info
                 model_num = (model_index + 1) if model_index is not None else 0
