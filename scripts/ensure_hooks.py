@@ -49,7 +49,8 @@ def install_hooks() -> bool:
             return True
         except FileNotFoundError:
             print(
-                "Error: pre-commit is not installed. Run 'uv sync --dev' first.",
+                "Error: pre-commit is not installed. "
+                "Run 'uv sync --all-extras --dev' first.",
                 file=sys.stderr,
             )
             return False
