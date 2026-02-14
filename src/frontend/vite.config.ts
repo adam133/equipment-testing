@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/equipment-testing/',
+  server: {
+    host: 'localhost', // Only listen on localhost to prevent local network access prompt
+  },
   test: {
     globals: true,
     environment: 'jsdom',
