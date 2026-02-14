@@ -1,5 +1,7 @@
 """Tests for the FastAPI application."""
 
+import json
+
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -111,3 +113,59 @@ def test_invalid_limit():
     """Test that invalid limit is rejected."""
     response = client.get("/equipment?limit=2000")
     assert response.status_code == 422  # Validation error
+
+
+def test_list_error_records():
+    """Test listing error records."""
+    response = client.get("/errors")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_list_error_records_with_category_filter():
+    """Test listing error records filtered by category."""
+    response = client.get("/errors?category=tractor")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_list_error_records_with_error_type_filter():
+    """Test listing error records filtered by error type."""
+    response = client.get("/errors?error_type=ValidationError")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_list_error_records_with_multiple_filters():
+    """Test listing error records with multiple filters."""
+    response = client.get("/errors?category=combine&error_type=ValueError")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_batch_delete_errors():
+    """Test batch deleting error records."""
+    delete_request = {"ids": ["err_001", "err_002"]}
+    response = client.request(
+        "DELETE",
+        "/errors/batch",
+        content=json.dumps(delete_request),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 204
+
+
+def test_batch_delete_errors_empty_list():
+    """Test that empty ID list is rejected."""
+    delete_request = {"ids": []}
+    response = client.request(
+        "DELETE",
+        "/errors/batch",
+        content=json.dumps(delete_request),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 400

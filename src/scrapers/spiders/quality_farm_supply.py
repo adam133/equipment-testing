@@ -31,8 +31,8 @@ The mapping function handles:
 - Various gear format patterns ("8F/4R", "12/6", "42", etc.)
 """
 
-from collections.abc import Iterator
 import json
+from collections.abc import Iterator
 from typing import Any
 from urllib.parse import urlencode
 
@@ -98,7 +98,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
     # Known manufacturer names for parsing
     # (ordered by length descending to match longest first)
-       # Known manufacturer names for parsing
+    # Known manufacturer names for parsing
     # (ordered by length descending to match longest first)
     known_makes = [
         "Massey Ferguson",
@@ -456,7 +456,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         if fwd_rev_std and fwd_rev_std != "null":
             # Format varies: could be "4/2/6/16", "8F/8R", "42616", etc.
             fwd_rev_str = str(fwd_rev_std)
-            
+
             # Pattern 1: "8F/8R" format
             if "F" in fwd_rev_str.upper() and "R" in fwd_rev_str.upper():
                 parts = fwd_rev_str.upper().split("/")
