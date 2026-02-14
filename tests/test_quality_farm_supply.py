@@ -503,6 +503,7 @@ def test_parse_model_data_with_attributes(spider):
     assert len(results) == 1
     assert results[0]["make"] == "John Deere"
     assert results[0]["model"] == "5075E"
+    assert results[0]["series"] == "5E Series"
     assert results[0]["engine_hp"] == 75.0
     assert results[0]["pto_hp"] == 65.0
     assert results[0]["weight_lbs"] == 7700.0
