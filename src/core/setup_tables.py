@@ -7,7 +7,7 @@ models to derive the table schemas.
 
 import logging
 import sys
-from typing import Any, Type
+from typing import Any
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -77,7 +77,7 @@ def pydantic_to_sql_type(field_info: FieldInfo, python_type: Any) -> str:
     return type_mapping.get(python_type, "VARCHAR")
 
 
-def get_schema_from_model(model_class: Type[BaseModel]) -> dict[str, str]:
+def get_schema_from_model(model_class: type[BaseModel]) -> dict[str, str]:
     """Extract SQL schema from a Pydantic model.
 
     Args:
@@ -103,7 +103,7 @@ def get_schema_from_model(model_class: Type[BaseModel]) -> dict[str, str]:
 
 
 def setup_table(
-    table_manager: TableManager, table_name: str, model_class: Type[BaseModel]
+    table_manager: TableManager, table_name: str, model_class: type[BaseModel]
 ) -> bool:
     """Create or verify a table exists with the correct schema.
 
@@ -149,7 +149,7 @@ def setup_all_tables() -> int:
         logger.info("Connected to Unity Catalog")
 
         # Define tables and their models
-        tables: list[tuple[str, Type[BaseModel]]] = [
+        tables: list[tuple[str, type[BaseModel]]] = [
             ("tractors", Tractor),
             ("combines", Combine),
             ("sprayers", Sprayer),
