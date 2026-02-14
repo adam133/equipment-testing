@@ -1,7 +1,7 @@
 """Tests for the Quality Farm Supply spider."""
 
 import pytest
-from scrapy.http import HtmlResponse
+from scrapy.http import HtmlResponse, Request
 
 from core.models import EquipmentCategory
 from scrapers.spiders.quality_farm_supply import QualityFarmSupplySpider
@@ -16,8 +16,6 @@ def spider():
 @pytest.fixture
 def mock_response_table():
     """Create a mock HTML response with table layout."""
-    from scrapy.http import Request
-    
     html = """
     <html>
         <body>
@@ -55,8 +53,6 @@ def mock_response_table():
 @pytest.fixture
 def mock_response_cards():
     """Create a mock HTML response with card layout."""
-    from scrapy.http import Request
-    
     html = """
     <html>
         <body>
@@ -185,19 +181,17 @@ def test_parse_cards(spider, mock_response_cards):
 
 def test_parse_without_filter_generates_requests(spider):
     """Test that parse generates requests for each target make when no filter is set."""
-    from scrapy.http import Request
-    
     html = "<html><body></body></html>"
     url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
     # Create response without make_filter in meta
     request = Request(url=url, meta={})
     response = HtmlResponse(url=url, body=html, encoding="utf-8", request=request)
-    
+
     results = list(spider.parse(response))
-    
+
     # Should generate requests for each target make instead of parsing items
     assert len(results) == len(spider.target_makes)
-    
+
     # Check that each result is a Request (not an item dict)
     for result in results:
         assert isinstance(result, Request)
@@ -205,11 +199,9 @@ def test_parse_without_filter_generates_requests(spider):
 
 def test_target_makes_filter(spider):
     """Test that target_makes filtering works."""
-    from scrapy.http import Request
-    
     # Set target makes to only include John Deere
     spider.target_makes = ["John Deere"]
-    
+
     html = """
     <html>
         <body>
@@ -234,10 +226,8 @@ def test_target_makes_filter(spider):
 
 def test_empty_target_makes(spider):
     """Test with empty target_makes (should parse immediately)."""
-    from scrapy.http import Request
-    
     spider.target_makes = []
-    
+
     html = """
     <html>
         <body>
@@ -355,9 +345,9 @@ def test_parse_make_model_invalid(spider):
 def test_start_requests_uses_playwright(spider):
     """Test that start_requests generates Playwright-enabled requests."""
     requests = list(spider.start_requests())
-    
+
     assert len(requests) > 0
-    
+
     # Check first request has Playwright enabled
     first_request = requests[0]
     assert "playwright" in first_request.meta
@@ -379,7 +369,7 @@ def test_make_playwright_request_without_filter(spider):
     """Test _make_playwright_request without make filter."""
     url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
     request = spider._make_playwright_request(url, callback=spider.parse)
-    
+
     assert request.url == url
     assert request.meta["playwright"] is True
     assert request.meta.get("make_filter") is None
@@ -391,7 +381,7 @@ def test_make_playwright_request_with_filter(spider):
     url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
     make = "John Deere"
     request = spider._make_playwright_request(url, callback=spider.parse, make=make)
-    
+
     assert request.url == url
     assert request.meta["playwright"] is True
     assert request.meta.get("make_filter") == make

@@ -8,6 +8,7 @@ This spider uses Playwright to handle dynamic JavaScript-based form navigation.
 from collections.abc import Iterator
 from typing import Any
 
+from scrapy import Request
 from scrapy.http import Response
 
 from core.models import EquipmentCategory
@@ -121,8 +122,6 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         Returns:
             Scrapy Request with Playwright meta options
         """
-        from scrapy import Request
-
         # Playwright page actions to execute
         playwright_page_actions = []
 
@@ -207,13 +206,8 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             + (f" (filtered by {make_filter})" if make_filter else "")
         )
 
-        # Close the Playwright page if it's in the response
-        page = response.meta.get("playwright_page")
-        if page:
-            # Schedule page close asynchronously
-            import asyncio
-
-            asyncio.create_task(page.close())
+        # Note: Playwright page cleanup is handled automatically by scrapy-playwright
+        # No manual page.close() needed here
 
         # If we haven't applied a make filter yet, iterate through target makes
         if not make_filter and self.target_makes:
