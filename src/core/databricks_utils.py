@@ -422,6 +422,10 @@ def get_table_manager(
     if not final_endpoint:
         raise ValueError("Missing required environment variable: DATABRICKS_HOST")
 
+    # Format token with Bearer prefix if not already present
+    if not final_token.startswith("Bearer "):
+        final_token = f"Bearer {final_token}"
+
     # Format endpoint as Unity Catalog API URL if needed
     if not final_endpoint.startswith("http"):
         # No protocol provided, add https and API path
