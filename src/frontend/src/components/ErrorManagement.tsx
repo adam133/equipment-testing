@@ -93,6 +93,29 @@ export function ErrorManagement() {
     }
   };
 
+  const handleDeleteOne = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this error record?')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await mockApi.deleteErrorRecords([id]);
+      // Remove deleted error from local state
+      setErrors(errors.filter(err => err.id !== id));
+      // Remove from selected if it was selected
+      const newSelected = new Set(selectedIds);
+      newSelected.delete(id);
+      setSelectedIds(newSelected);
+      alert('Successfully deleted 1 error record.');
+    } catch (error) {
+      console.error('Failed to delete error record:', error);
+      alert('Failed to delete error record. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="error-management">
@@ -225,12 +248,10 @@ export function ErrorManagement() {
                   <td className="error-message">{error.error_message}</td>
                   <td>
                     <button
-                      onClick={() => {
-                        setSelectedIds(new Set([error.id]));
-                        handleBatchDelete();
-                      }}
+                      onClick={() => handleDeleteOne(error.id)}
                       className="btn-icon"
                       title="Delete this record"
+                      disabled={deleting}
                     >
                       🗑️
                     </button>

@@ -1,5 +1,7 @@
 """Tests for the FastAPI application."""
 
+import json
+
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -147,8 +149,6 @@ def test_list_error_records_with_multiple_filters():
 
 def test_batch_delete_errors():
     """Test batch deleting error records."""
-    import json
-
     delete_request = {"ids": ["err_001", "err_002"]}
     response = client.request(
         "DELETE", "/errors/batch", content=json.dumps(delete_request),
@@ -159,8 +159,6 @@ def test_batch_delete_errors():
 
 def test_batch_delete_errors_empty_list():
     """Test that empty ID list is rejected."""
-    import json
-
     delete_request = {"ids": []}
     response = client.request(
         "DELETE", "/errors/batch", content=json.dumps(delete_request),
