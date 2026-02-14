@@ -131,56 +131,55 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         playwright_page_actions = []
 
         if make and model_index is not None:
-            # Actions to select both make and model from filters
+            # Actions to select both make and model from tractor-specific filters
             playwright_page_actions = [
                 # Wait for the page to load
                 "page.wait_for_load_state('networkidle')",
-                # Wait for filter elements to be available
-                (
-                    "page.wait_for_selector("
-                    "'select, .filter-select, [data-filter-make]', "
-                    "timeout=10000)"
-                ),
-                # Select the make first
+                # Wait for tractor-make dropdown to be available
+                "page.wait_for_selector('#tractor-make', timeout=10000)",
+                # Wait for AJAX to populate the make dropdown
+                "page.wait_for_timeout(3000)",
+                # Select the make from #tractor-make dropdown
                 f"page.evaluate('() => {{ "
-                f"  const selects = document.querySelectorAll('select'); "
-                f"  for (const select of selects) {{ "
-                f"    const options = Array.from(select.options); "
-                f'    const option = options.find(opt => opt.text.includes("{make}")); '
-                f"    if (option) {{ "
-                f"      select.value = option.value; "
-                f"      select.dispatchEvent("
-                f"        new Event('change', {{ bubbles: true }})"
-                f"      ); "
-                f"      return true; "
-                f"    }} "
+                f"  const makeSelect = document.querySelector('#tractor-make'); "
+                f"  if (!makeSelect) return false; "
+                f"  const options = Array.from(makeSelect.options); "
+                f'  const option = options.find(opt => opt.text.includes("{make}")); '
+                f"  if (option) {{ "
+                f"    makeSelect.value = option.value; "
+                f"    makeSelect.dispatchEvent("
+                f"      new Event('change', {{ bubbles: true }})"
+                f"    ); "
+                f"    return option.value; "
                 f"  }} "
                 f"  return false; "
                 f"}}')",
-                # Wait for model dropdown to populate
-                "page.wait_for_timeout(2000)",
-                # Select the model by index
-                # (skip first option which is usually "Select Model")
+                # Wait for model dropdown to populate via AJAX
+                "page.wait_for_timeout(3000)",
+                # Select the model by index from #tractor-model dropdown
                 f"page.evaluate('() => {{ "
-                f"  const selects = document.querySelectorAll('select'); "
-                f"  for (const select of selects) {{ "
-                f"    if (select.options.length > {model_index + 1}) {{ "
-                f"      const options = Array.from(select.options); "
-                f"      // Skip first option (usually placeholder like 'Select Model') "
-                f"      const targetIndex = {model_index + 1}; "
-                f"      if (targetIndex < options.length) {{ "
-                f"        select.selectedIndex = targetIndex; "
-                f"        select.dispatchEvent("
-                f"          new Event('change', {{ bubbles: true }})"
-                f"        ); "
-                f"        return options[targetIndex].text; "
-                f"      }} "
-                f"    }} "
+                f"  const modelSelect = document.querySelector('#tractor-model'); "
+                f"  if (!modelSelect) return null; "
+                f"  const options = Array.from(modelSelect.options); "
+                f"  // Skip first option (placeholder 'Select One') "
+                f"  const targetIndex = {model_index + 1}; "
+                f"  if (targetIndex < options.length) {{ "
+                f"    modelSelect.value = options[targetIndex].value; "
+                f"    modelSelect.dispatchEvent("
+                f"      new Event('change', {{ bubbles: true }})"
+                f"    ); "
+                f"    return options[targetIndex].text; "
                 f"  }} "
                 f"  return null; "
                 f"}}')",
-                # Wait for model-specific attributes to load
-                "page.wait_for_timeout(2000)",
+                # Wait for tractor details data to load via AJAX
+                "page.wait_for_timeout(3000)",
+                # Wait for the details table to appear
+                (
+                    "page.wait_for_selector("
+                    "'#tractor-details, .tractor-details-data', "
+                    "timeout=5000)"
+                ),
             ]
         elif make:
             # Actions to select only make from the filter
@@ -267,84 +266,64 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             f"Parsing model data for {make_filter}, model index {model_index}"
         )
 
-        # Verify DOM structure for model attributes
-        # Look for common attribute containers
-        attributes_container = (
-            response.css(".attributes, .specs, .specifications, .details")
-            or response.css("div[class*='attribute']")
-            or response.css("div[class*='spec']")
-        )
+        # Look for the tractor-details table (populated by AJAX)
+        details_table = response.css("#tractor-details, .tractor-details-data")
 
-        if not attributes_container:
+        if not details_table:
             self.logger.warning(
-                f"No attributes container found for {make_filter} "
+                f"No tractor details table found for {make_filter} "
                 f"model {model_index}. "
-                f"Expected DOM structure with class 'attributes', "
-                f"'specs', or 'specifications'."
+                f"Expected table with id 'tractor-details' or class 'tractor-details-data'."
             )
-            # Try to find any data anyway - use the whole response
-            attributes_container = response.css("body")
+            return
 
-        # Extract model attributes from the DOM
-        # Try multiple strategies to find the model name and specs
-        for container in attributes_container[:1]:  # Use first container
-            # Strategy 1: Look for model name in heading or title
-            model_name = (
-                container.css("h1::text, h2::text, h3::text, .model-name::text")
-                .get(default="")
-                .strip()
+        self.logger.info("Found tractor details table")
+
+        # Extract data from the table
+        # The table has rows with two cells: key and value
+        rows = details_table.css("tr")
+
+        if not rows or len(rows) == 0:
+            self.logger.warning(
+                f"Tractor details table is empty for {make_filter} model {model_index}"
             )
+            return
 
-            # If we found a model name, parse it
-            if model_name:
-                parsed = self._parse_make_model(model_name)
-                if parsed:
-                    make, model = parsed
+        self.logger.info(f"Found {len(rows)} rows in tractor details table")
 
-                    item_data: dict[str, Any] = {
-                        "make": make,
-                        "model": model,
-                        "category": EquipmentCategory.TRACTOR,
-                        "source_url": response.url,
-                    }
+        # Initialize item data
+        item_data: dict[str, Any] = {
+            "make": make_filter,
+            "category": EquipmentCategory.TRACTOR,
+            "source_url": response.url,
+        }
 
-                    # Extract specifications from the attributes container
-                    # Look for key-value pairs in various formats
-                    self._extract_specs_from_container(container, item_data)
+        # Extract model name from the first row or from selected option
+        # Try to get the selected model name from the dropdown
+        model_name = response.css("#tractor-model option[selected]::text").get()
+        if model_name:
+            item_data["model"] = model_name.strip()
+        else:
+            # Fallback to using model index
+            item_data["model"] = f"Model_{model_index + 1}"
 
-                    self.logger.info(
-                        f"Successfully extracted model data: {make} {model}"
-                    )
-                    yield self.create_equipment_item(**item_data)
-                    return
+        # Parse each row for specifications
+        for row in rows:
+            cells = row.css("td")
+            if len(cells) >= 2:
+                key = cells[0].css("::text").get(default="").strip().lower()
+                value = cells[1].css("::text").get(default="").strip()
 
-            # Strategy 2: Look for structured attribute list
-            attribute_items = container.css(".attribute-item, .spec-item, dt, tr")
-            if attribute_items and len(attribute_items) > 2:
-                # Found structured attributes, try to extract model info
-                fallback_model_number = (
-                    (model_index + 1) if model_index is not None else 0
-                )
-                make_name = make_filter or "Unknown"
-                item_data = {
-                    "make": make_name,
-                    "model": f"Unknown_Model_{make_name}_{fallback_model_number}",
-                    "category": EquipmentCategory.TRACTOR,
-                    "source_url": response.url,
-                }
+                if key and value:
+                    self._extract_spec_value(key, value, item_data)
 
-                self._extract_specs_from_container(container, item_data)
-
-                self.logger.info(
-                    f"Extracted model data with {len(item_data)} attributes"
-                )
-                yield self.create_equipment_item(**item_data)
-                return
-
-        self.logger.warning(
-            f"No model data found for {make_filter} model {model_index}. "
-            f"DOM structure verification failed."
+        # Log what we extracted
+        self.logger.info(
+            f"Successfully extracted model data for {item_data.get('make')} "
+            f"{item_data.get('model')} with {len(item_data)} fields"
         )
+
+        yield self.create_equipment_item(**item_data)
 
     def _extract_specs_from_container(
         self, container: Any, item_data: dict[str, Any]
