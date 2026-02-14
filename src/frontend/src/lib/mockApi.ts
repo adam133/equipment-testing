@@ -35,6 +35,16 @@ export interface Implement extends Equipment {
   hp_required_max?: number;
 }
 
+export interface ErrorRecord {
+  id: string;
+  category: 'tractor' | 'combine' | 'implement';
+  error_type: string;
+  error_message: string;
+  make?: string;
+  model?: string;
+  data: Record<string, any>;
+}
+
 // Mock data for tractors
 const mockTractors: Tractor[] = [
   {
@@ -184,6 +194,132 @@ const mockEquipment: Equipment[] = [
   ...mockImplements,
 ];
 
+// Mock error records
+const mockErrorRecords: ErrorRecord[] = [
+  {
+    id: 'err_001',
+    category: 'tractor',
+    error_type: 'ValidationError',
+    error_message: 'Field required: year_start',
+    make: 'John Deere',
+    model: '6155R',
+    data: {
+      make: 'John Deere',
+      model: '6155R',
+      category: 'tractor',
+      pto_hp: 155,
+      engine_hp: 170,
+      // year_start is missing
+    },
+  },
+  {
+    id: 'err_002',
+    category: 'combine',
+    error_type: 'ValidationError',
+    error_message: 'Invalid value for separator_type: must be one of [conventional, rotary, hybrid]',
+    make: 'Case IH',
+    model: 'Axial-Flow 6150',
+    data: {
+      make: 'Case IH',
+      model: 'Axial-Flow 6150',
+      category: 'combine',
+      separator_type: 'unknown',
+      engine_hp: 353,
+    },
+  },
+  {
+    id: 'err_003',
+    category: 'implement',
+    error_type: 'ValueError',
+    error_message: 'working_width must be positive',
+    make: 'Great Plains',
+    model: 'Turbo-Max 1500',
+    data: {
+      make: 'Great Plains',
+      model: 'Turbo-Max 1500',
+      category: 'implement',
+      working_width: -15,
+      weight_lbs: 8000,
+    },
+  },
+  {
+    id: 'err_004',
+    category: 'tractor',
+    error_type: 'ValidationError',
+    error_message: 'year_end must be >= year_start',
+    make: 'New Holland',
+    model: 'T6.180',
+    data: {
+      make: 'New Holland',
+      model: 'T6.180',
+      category: 'tractor',
+      year_start: 2020,
+      year_end: 2018,
+      pto_hp: 150,
+    },
+  },
+  {
+    id: 'err_005',
+    category: 'combine',
+    error_type: 'ValidationError',
+    error_message: 'Field required: make',
+    make: undefined,
+    model: 'CR9.90',
+    data: {
+      model: 'CR9.90',
+      category: 'combine',
+      grain_tank_capacity: 460,
+      engine_hp: 652,
+    },
+  },
+  {
+    id: 'err_006',
+    category: 'tractor',
+    error_type: 'TypeError',
+    error_message: 'pto_hp must be a number',
+    make: 'Kubota',
+    model: 'M5-111',
+    data: {
+      make: 'Kubota',
+      model: 'M5-111',
+      category: 'tractor',
+      pto_hp: 'N/A',
+      engine_hp: 111,
+    },
+  },
+  {
+    id: 'err_007',
+    category: 'implement',
+    error_type: 'ValidationError',
+    error_message: 'hp_required_max must be >= hp_required_min',
+    make: 'John Deere',
+    model: '2623VT',
+    data: {
+      make: 'John Deere',
+      model: '2623VT',
+      category: 'implement',
+      working_width: 23,
+      hp_required_min: 200,
+      hp_required_max: 150,
+    },
+  },
+  {
+    id: 'err_008',
+    category: 'tractor',
+    error_type: 'ValidationError',
+    error_message: 'Invalid transmission_type: must be one of [manual, powershift, cvt, hydrostatic, ivt, other]',
+    make: 'Case IH',
+    model: 'Maxxum 145',
+    data: {
+      make: 'Case IH',
+      model: 'Maxxum 145',
+      category: 'tractor',
+      transmission_type: 'automatic',
+      pto_hp: 125,
+    },
+  },
+];
+
 // Mock API client functions
 export const mockApi = {
   // Get all equipment
@@ -243,5 +379,32 @@ export const mockApi = {
       combines: mockCombines.length,
       implements: mockImplements.length,
     };
+  },
+
+  // Get error records
+  async getErrorRecords(filters?: {
+    category?: string;
+    error_type?: string;
+  }): Promise<ErrorRecord[]> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    let filtered = [...mockErrorRecords];
+
+    if (filters?.category) {
+      filtered = filtered.filter(err => err.category === filters.category);
+    }
+
+    if (filters?.error_type) {
+      filtered = filtered.filter(err => err.error_type === filters.error_type);
+    }
+
+    return filtered;
+  },
+
+  // Delete error records by IDs
+  async deleteErrorRecords(ids: string[]): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // In a real implementation, this would make a DELETE request to the backend
+    // For mock, we'll just simulate success
+    console.log('Deleting error records:', ids);
   },
 };

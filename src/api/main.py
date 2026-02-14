@@ -75,6 +75,24 @@ class ContributionRequest(BaseModel):
     submitter_email: str | None = None
 
 
+class ErrorRecord(BaseModel):
+    """Error record from scraping pipeline."""
+
+    id: str
+    category: EquipmentCategory
+    error_type: str
+    error_message: str
+    make: str | None = None
+    model: str | None = None
+    data: dict[str, Any]
+
+
+class BatchDeleteRequest(BaseModel):
+    """Request to batch delete error records."""
+
+    ids: list[str]
+
+
 @app.get("/", response_model=HealthResponse)
 async def root() -> HealthResponse:
     """Root endpoint - health check.
@@ -265,6 +283,58 @@ async def get_statistics() -> dict[str, Any]:
         "manufacturers": 0,
         "last_updated": None,
     }
+
+
+@app.get("/errors", response_model=list[ErrorRecord])
+async def list_error_records(
+    category: EquipmentCategory | None = Query(
+        None, description="Filter by equipment category"
+    ),
+    error_type: str | None = Query(None, description="Filter by error type"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+) -> list[ErrorRecord]:
+    """List error records from scraping pipeline with optional filters.
+
+    Args:
+        category: Filter by equipment category
+        error_type: Filter by error type (e.g., ValidationError)
+        limit: Maximum number of results
+        offset: Offset for pagination
+
+    Returns:
+        List of error records matching filters
+
+    Note:
+        This is a placeholder. Actual implementation would query Unity Catalog
+        error tables (tractors_error, combines_error, implements_error).
+    """
+    # Placeholder for actual query logic
+    # In production, this would:
+    # 1. Connect to Unity Catalog using databricks_utils (DuckDB)
+    # 2. Query the appropriate error tables based on filters
+    # 3. Execute query and return results
+    return []
+
+
+@app.delete("/errors/batch", status_code=204)
+async def batch_delete_errors(request: BatchDeleteRequest) -> None:
+    """Batch delete error records by IDs.
+
+    Args:
+        request: List of error record IDs to delete
+
+    Note:
+        This is a placeholder. Actual implementation would delete records
+        from Unity Catalog error tables.
+    """
+    # Placeholder for actual deletion logic
+    # In production, this would:
+    # 1. Connect to Unity Catalog using databricks_utils (DuckDB)
+    # 2. Delete records from appropriate error tables
+    # 3. Return success status
+    if not request.ids:
+        raise HTTPException(status_code=400, detail="No IDs provided for deletion")
 
 
 def main() -> None:

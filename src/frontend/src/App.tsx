@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { mockApi, Equipment } from './lib/mockApi';
 import { EquipmentCard } from './components/EquipmentCard';
+import { ErrorManagement } from './components/ErrorManagement';
 import './App.css';
 
+type View = 'equipment' | 'errors';
+
 function App() {
+  const [currentView, setCurrentView] = useState<View>('equipment');
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,93 +69,113 @@ function App() {
         <div className="container">
           <h1>🌾 OpenAg-DB</h1>
           <p className="tagline">Open Agricultural Equipment Database</p>
+          <nav className="nav-tabs">
+            <button
+              className={`nav-tab ${currentView === 'equipment' ? 'active' : ''}`}
+              onClick={() => setCurrentView('equipment')}
+            >
+              Equipment
+            </button>
+            <button
+              className={`nav-tab ${currentView === 'errors' ? 'active' : ''}`}
+              onClick={() => setCurrentView('errors')}
+            >
+              Error Records
+            </button>
+          </nav>
         </div>
       </header>
 
       <main className="container">
-        <section className="stats">
-          <div className="stat-card">
-            <div className="stat-value">{stats.total_equipment}</div>
-            <div className="stat-label">Total Equipment</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{stats.tractors}</div>
-            <div className="stat-label">Tractors</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{stats.combines}</div>
-            <div className="stat-label">Combines</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{stats.implements}</div>
-            <div className="stat-label">Implements</div>
-          </div>
-        </section>
-
-        <section className="filters">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search equipment..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-          </div>
-
-          <div className="category-filters">
-            <button
-              className={`filter-btn ${categoryFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setCategoryFilter('all')}
-            >
-              All
-            </button>
-            <button
-              className={`filter-btn ${categoryFilter === 'tractor' ? 'active' : ''}`}
-              onClick={() => setCategoryFilter('tractor')}
-            >
-              Tractors
-            </button>
-            <button
-              className={`filter-btn ${categoryFilter === 'combine' ? 'active' : ''}`}
-              onClick={() => setCategoryFilter('combine')}
-            >
-              Combines
-            </button>
-            <button
-              className={`filter-btn ${categoryFilter === 'implement' ? 'active' : ''}`}
-              onClick={() => setCategoryFilter('implement')}
-            >
-              Implements
-            </button>
-          </div>
-        </section>
-
-        {loading ? (
-          <div className="loading">Loading equipment data...</div>
-        ) : (
+        {currentView === 'equipment' ? (
           <>
-            <section className="results-info">
-              <p>
-                Showing {filteredEquipment.length} of {equipment.length} equipment
-              </p>
+            <section className="stats">
+              <div className="stat-card">
+                <div className="stat-value">{stats.total_equipment}</div>
+                <div className="stat-label">Total Equipment</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{stats.tractors}</div>
+                <div className="stat-label">Tractors</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{stats.combines}</div>
+                <div className="stat-label">Combines</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{stats.implements}</div>
+                <div className="stat-label">Implements</div>
+              </div>
             </section>
 
-            <section className="equipment-grid">
-              {filteredEquipment.length === 0 ? (
-                <div className="no-results">
-                  <p>No equipment found matching your criteria.</p>
-                </div>
-              ) : (
-                filteredEquipment.map((item) => (
-                  <EquipmentCard
-                    key={`${item.category}-${item.make}-${item.model}-${item.year_start || 'unknown'}`}
-                    equipment={item}
-                  />
-                ))
-              )}
+            <section className="filters">
+              <div className="search-box">
+                <input
+                  type="text"
+                  placeholder="Search equipment..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+
+              <div className="category-filters">
+                <button
+                  className={`filter-btn ${categoryFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setCategoryFilter('all')}
+                >
+                  All
+                </button>
+                <button
+                  className={`filter-btn ${categoryFilter === 'tractor' ? 'active' : ''}`}
+                  onClick={() => setCategoryFilter('tractor')}
+                >
+                  Tractors
+                </button>
+                <button
+                  className={`filter-btn ${categoryFilter === 'combine' ? 'active' : ''}`}
+                  onClick={() => setCategoryFilter('combine')}
+                >
+                  Combines
+                </button>
+                <button
+                  className={`filter-btn ${categoryFilter === 'implement' ? 'active' : ''}`}
+                  onClick={() => setCategoryFilter('implement')}
+                >
+                  Implements
+                </button>
+              </div>
             </section>
+
+            {loading ? (
+              <div className="loading">Loading equipment data...</div>
+            ) : (
+              <>
+                <section className="results-info">
+                  <p>
+                    Showing {filteredEquipment.length} of {equipment.length} equipment
+                  </p>
+                </section>
+
+                <section className="equipment-grid">
+                  {filteredEquipment.length === 0 ? (
+                    <div className="no-results">
+                      <p>No equipment found matching your criteria.</p>
+                    </div>
+                  ) : (
+                    filteredEquipment.map((item) => (
+                      <EquipmentCard
+                        key={`${item.category}-${item.make}-${item.model}-${item.year_start || 'unknown'}`}
+                        equipment={item}
+                      />
+                    ))
+                  )}
+                </section>
+              </>
+            )}
           </>
+        ) : (
+          <ErrorManagement />
         )}
       </main>
 
