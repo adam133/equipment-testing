@@ -48,7 +48,10 @@ def install_hooks() -> bool:
             print(result.stdout)
             return True
         except FileNotFoundError:
-            print("Error: pre-commit is not installed. Run 'uv sync --dev' first.", file=sys.stderr)
+            print(
+                "Error: pre-commit is not installed. Run 'uv sync --dev' first.",
+                file=sys.stderr,
+            )
             return False
     except subprocess.CalledProcessError as e:
         print(f"Error installing pre-commit hooks: {e.stderr}", file=sys.stderr)
