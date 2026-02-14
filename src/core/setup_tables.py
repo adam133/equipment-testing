@@ -135,6 +135,46 @@ def setup_table(
         return False
 
 
+def setup_error_table(
+    table_manager: TableManager, table_name: str, model_class: type[BaseModel]
+) -> bool:
+    """Create or verify an error table exists with the correct schema.
+
+    Error tables have the same schema as the base table plus additional
+    error tracking fields: _validation_error and _error_type.
+
+    Args:
+        table_manager: TableManager instance
+        table_name: Name of the error table to create (e.g., "tractors_error")
+        model_class: Pydantic model class defining the base schema
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        logger.info(f"Setting up error table: {table_name}")
+
+        # Get schema from Pydantic model
+        schema = get_schema_from_model(model_class)
+
+        # Add error tracking fields
+        schema["_validation_error"] = "VARCHAR"
+        schema["_error_type"] = "VARCHAR"
+
+        # Log schema for debugging
+        logger.debug(f"Schema for {table_name}: {schema}")
+
+        # Create table (IF NOT EXISTS, so safe to run multiple times)
+        table_manager.create_table(table_name, schema)
+
+        logger.info(f"✓ Error table {table_name} is ready")
+        return True
+
+    except Exception as e:
+        logger.error(f"✗ Failed to setup error table {table_name}: {e}")
+        return False
+
+
 def setup_all_tables() -> int:
     """Create or verify all required tables exist.
 
@@ -162,6 +202,20 @@ def setup_all_tables() -> int:
         # Create each table
         for table_name, model_class in tables:
             success = setup_table(table_manager, table_name, model_class)
+            if not success:
+                all_success = False
+
+        # Create error tables for each equipment type
+        logger.info("Setting up error tables...")
+        error_tables: list[tuple[str, type[BaseModel]]] = [
+            ("tractors_error", Tractor),
+            ("combines_error", Combine),
+            ("sprayers_error", Sprayer),
+            ("implements_error", Implement),
+        ]
+
+        for error_table_name, model_class in error_tables:
+            success = setup_error_table(table_manager, error_table_name, model_class)
             if not success:
                 all_success = False
 

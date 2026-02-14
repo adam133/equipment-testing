@@ -29,6 +29,10 @@ uv run python -m core.setup_tables
 # - equip.ag_equipment.combines
 # - equip.ag_equipment.sprayers
 # - equip.ag_equipment.implements
+# - equip.ag_equipment.tractors_error
+# - equip.ag_equipment.combines_error
+# - equip.ag_equipment.sprayers_error
+# - equip.ag_equipment.implements_error
 ```
 
 **Exit Codes:**
@@ -70,12 +74,29 @@ The script automatically maps Pydantic field types to SQL types:
 | Enums (StrEnum) | `VARCHAR` |
 | Optional types | Same as base type |
 
+## Error Tables
+
+For each equipment type, the script also creates error tables to store validation failures:
+
+**Error Tables:**
+- `tractors_error`
+- `combines_error`
+- `sprayers_error`
+- `implements_error`
+
+**Error Table Schema:**
+Error tables include all fields from the base equipment model, plus:
+- `_validation_error` (VARCHAR): Error message
+- `_error_type` (VARCHAR): Error type (e.g., "ValidationError")
+
+These tables allow the scraper to capture and store items that fail validation, enabling debugging and data quality monitoring without losing the original data.
+
 ## Adding New Equipment Types
 
 To add a new equipment type:
 
 1. Create Pydantic model in `src/core/models.py`
-2. Add table entry in `setup_tables.py`:
+2. Add table entries in `setup_tables.py`:
    ```python
    tables: list[tuple[str, type[BaseModel]]] = [
        ("tractors", Tractor),
@@ -84,6 +105,17 @@ To add a new equipment type:
        ("implements", Implement),
        ("new_equipment", NewEquipment),  # Add here
    ]
+   
+   # Also add to error_tables list
+   error_tables: list[tuple[str, type[BaseModel]]] = [
+       ("tractors_error", Tractor),
+       ("combines_error", Combine),
+       ("sprayers_error", Sprayer),
+       ("implements_error", Implement),
+       ("new_equipment_error", NewEquipment),  # Add here
+   ]
+   ```
+3. Run tests: `uv run pytest tests/test_setup_tables.py`
    ```
 3. Run tests: `uv run pytest tests/test_setup_tables.py`
 
