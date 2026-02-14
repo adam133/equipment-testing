@@ -8,90 +8,79 @@ import { mockApi } from './mockApi';
 // Detect if running in production (GitHub Pages) or development
 const isProduction = import.meta.env.PROD && !import.meta.env.VITE_API_URL;
 
+// Higher-order function to handle API calls with fallback
+async function withFallback<T>(
+  realApiFn: () => Promise<T>,
+  mockApiFn: () => Promise<T>,
+  errorMessage: string
+): Promise<T> {
+  if (isProduction) {
+    return mockApiFn();
+  }
+  try {
+    return await realApiFn();
+  } catch (error) {
+    console.warn(`${errorMessage}:`, error);
+    return mockApiFn();
+  }
+}
+
 // Export the appropriate API client based on environment
 export const apiClient = {
   async getAllEquipment(): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.getAllEquipment();
-    }
-    try {
-      return await api.getAllEquipment();
-    } catch (error) {
-      console.warn('Failed to fetch from real API, falling back to mock data:', error);
-      return mockApi.getAllEquipment();
-    }
+    return withFallback(
+      () => api.getAllEquipment(),
+      () => mockApi.getAllEquipment(),
+      'Failed to fetch from real API, falling back to mock data'
+    );
   },
 
   async getEquipmentByCategory(category: string): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.getEquipmentByCategory(category);
-    }
-    try {
-      return await api.getEquipmentByCategory(category);
-    } catch (error) {
-      console.warn('Failed to fetch from real API, falling back to mock data:', error);
-      return mockApi.getEquipmentByCategory(category);
-    }
+    return withFallback(
+      () => api.getEquipmentByCategory(category),
+      () => mockApi.getEquipmentByCategory(category),
+      'Failed to fetch from real API, falling back to mock data'
+    );
   },
 
   async getTractors(): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.getTractors();
-    }
-    try {
-      return await api.getTractors();
-    } catch (error) {
-      console.warn('Failed to fetch from real API, falling back to mock data:', error);
-      return mockApi.getTractors();
-    }
+    return withFallback(
+      () => api.getTractors(),
+      () => mockApi.getTractors(),
+      'Failed to fetch from real API, falling back to mock data'
+    );
   },
 
   async getCombines(): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.getCombines();
-    }
-    try {
-      return await api.getCombines();
-    } catch (error) {
-      console.warn('Failed to fetch from real API, falling back to mock data:', error);
-      return mockApi.getCombines();
-    }
+    return withFallback(
+      () => api.getCombines(),
+      () => mockApi.getCombines(),
+      'Failed to fetch from real API, falling back to mock data'
+    );
   },
 
   async getImplements(): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.getImplements();
-    }
-    try {
-      return await api.getImplements();
-    } catch (error) {
-      console.warn('Failed to fetch from real API, falling back to mock data:', error);
-      return mockApi.getImplements();
-    }
+    return withFallback(
+      () => api.getImplements(),
+      () => mockApi.getImplements(),
+      'Failed to fetch from real API, falling back to mock data'
+    );
   },
 
   async searchEquipment(query: string): Promise<Equipment[]> {
-    if (isProduction) {
-      return mockApi.searchEquipment(query);
-    }
-    try {
-      return await api.searchEquipment(query);
-    } catch (error) {
-      console.warn('Failed to search from real API, falling back to mock data:', error);
-      return mockApi.searchEquipment(query);
-    }
+    return withFallback(
+      () => api.searchEquipment(query),
+      () => mockApi.searchEquipment(query),
+      'Failed to search from real API, falling back to mock data'
+    );
   },
 
   async getStats(): Promise<Stats> {
-    if (isProduction) {
-      return mockApi.getStats();
-    }
-    try {
-      return await api.getStats();
-    } catch (error) {
-      console.warn('Failed to fetch stats from real API, falling back to mock data:', error);
-      return mockApi.getStats();
-    }
+    return withFallback(
+      () => api.getStats(),
+      () => mockApi.getStats(),
+      'Failed to fetch stats from real API, falling back to mock data'
+    );
   },
 };
 

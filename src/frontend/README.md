@@ -178,13 +178,14 @@ This prevents modern browsers (Chrome 138+, Edge 144+) from showing a "local net
 
 ## 🚧 Future Enhancements
 
+- [ ] Deploy backend API to production
+- [ ] Connect production frontend to real backend API
 - [ ] Add detailed equipment view pages
 - [ ] Implement contribution form
 - [ ] Add equipment comparison feature
 - [ ] Integrate authentication for contributions
 - [ ] Add data visualization charts
 - [ ] Implement advanced filtering options
-- [ ] Add backend API deployment and connect production frontend
 
 ## 📝 Notes
 
