@@ -17,15 +17,18 @@ Thank you for your interest in contributing to Equipment Testing! This document 
    cd equipment-testing
    ```
 
-2. Install dependencies:
+2. Install dependencies and pre-commit hooks (one command does it all):
    ```bash
-   uv sync --dev
+   make setup
    ```
 
-3. Install pre-commit hooks:
+   Or manually:
    ```bash
+   uv sync --all-extras --dev
    uv run pre-commit install
    ```
+
+**Important**: Pre-commit hooks will automatically run before each commit to check code quality. If they find issues, the commit will be blocked until the issues are fixed.
 
 ## Development Workflow
 
@@ -40,20 +43,28 @@ Thank you for your interest in contributing to Equipment Testing! This document 
 
 3. Run tests:
    ```bash
-   uv run pytest
+   make test
+   # Or: uv run pytest
    ```
 
-4. Run linters and formatters:
+4. Check code quality:
    ```bash
-   # Format code
-   uv run ruff format src/ tests/
+   # Run all quality checks
+   make pre-commit
 
-   # Lint code
-   uv run ruff check src/ tests/
-
-   # Type check
-   uv run mypy src/
+   # Or run individual checks
+   make format    # Format code
+   make lint      # Lint code
+   make type-check # Type check code
    ```
+
+5. Commit your changes:
+   ```bash
+   git add .
+   git commit -m "Your descriptive commit message"
+   ```
+
+   **Note**: Pre-commit hooks will automatically run when you commit. If they find issues, they may auto-fix them or block the commit. Review the changes, stage them, and commit again if needed.
 
 ### Code Style
 
