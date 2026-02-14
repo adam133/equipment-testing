@@ -137,6 +137,20 @@ export default defineConfig({
 
 For local development or different deployment targets, update this value.
 
+### Development Server
+
+The Vite dev server is configured to listen only on `localhost` to prevent browser security prompts:
+
+```typescript
+export default defineConfig({
+  server: {
+    host: 'localhost',
+  },
+})
+```
+
+This prevents modern browsers (Chrome 138+, Edge 144+) from showing a "local network access" permission popup. If you need to access the dev server from other devices on your network, you can temporarily change this to `host: '0.0.0.0'` or use the `--host` flag.
+
 ## 🚧 Future Enhancements
 
 - [ ] Connect to real FastAPI backend
