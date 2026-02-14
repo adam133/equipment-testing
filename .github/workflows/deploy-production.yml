@@ -12,8 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup-tables:
-    name: Setup Unity Catalog Tables
+  verify-schema:
+    name: Verify Database Schema
     runs-on: ubuntu-latest
     environment: production
 
@@ -33,14 +33,16 @@ jobs:
         run: |
           uv sync --all-extras
 
-      - name: Setup Unity Catalog tables
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: Generate migration script
         run: |
-          uv run python -m core.setup_tables
+          uv run python -m core.generate_migration
+          echo "✓ Migration script generated at migrations/001_create_tables.sql"
+          echo "Note: Tables must be created manually in Databricks"
+          echo "See migrations/README.md for instructions"
 
-      - name: Verify table setup
-        if: success()
-        run: |
-          echo "✓ Unity Catalog tables setup completed successfully"
+      - name: Upload migration artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-script
+          path: migrations/001_create_tables.sql
+          retention-days: 90
