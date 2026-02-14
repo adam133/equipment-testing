@@ -57,7 +57,13 @@ class TestValidationPipeline:
 
     def test_process_valid_item(self, pipeline, mock_spider, valid_tractor_item):
         """Test processing a valid item."""
-        result = pipeline.process_item(valid_tractor_item, mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        result = pipeline.process_item(valid_tractor_item)
 
         # Should return validated item
         assert result is not None
@@ -67,11 +73,23 @@ class TestValidationPipeline:
 
     def test_process_invalid_item(self, pipeline, mock_spider, invalid_item):
         """Test processing an invalid item raises DropItem."""
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
         with pytest.raises(DropItem):
-            pipeline.process_item(invalid_item, mock_spider)
+            pipeline.process_item(invalid_item)
 
     def test_process_item_with_extra_fields(self, pipeline, mock_spider):
         """Test that extra fields are handled correctly."""
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
         item = {
             "make": "John Deere",
             "model": "5075E",
@@ -79,7 +97,7 @@ class TestValidationPipeline:
             "extra_field": "should be ignored",
         }
 
-        result = pipeline.process_item(item, mock_spider)
+        result = pipeline.process_item(item)
 
         # Should validate and strip extra fields per Pydantic model config
         assert result is not None
@@ -88,6 +106,12 @@ class TestValidationPipeline:
 
     def test_process_combine_item(self, pipeline, mock_spider):
         """Test processing a combine harvester item."""
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
         item = {
             "make": "Case IH",
             "model": "8250",
@@ -97,7 +121,7 @@ class TestValidationPipeline:
             "source_url": "https://example.com/combine",
         }
 
-        result = pipeline.process_item(item, mock_spider)
+        result = pipeline.process_item(item)
 
         assert result is not None
         assert result["make"] == "Case IH"
@@ -106,6 +130,12 @@ class TestValidationPipeline:
 
     def test_process_implement_item(self, pipeline, mock_spider):
         """Test processing an implement item."""
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
         item = {
             "make": "John Deere",
             "model": "1890",
@@ -115,7 +145,7 @@ class TestValidationPipeline:
             "source_url": "https://example.com/implement",
         }
 
-        result = pipeline.process_item(item, mock_spider)
+        result = pipeline.process_item(item)
 
         assert result is not None
         assert result["make"] == "John Deere"
@@ -139,19 +169,31 @@ class TestUnityCatalogWriterPipeline:
 
     def test_open_spider(self, pipeline, mock_spider):
         """Test open_spider initialization."""
-        pipeline.open_spider(mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
 
         # Buffer should be reset
         assert pipeline.items_buffer == []
 
     def test_close_spider(self, pipeline, mock_spider):
         """Test close_spider cleanup."""
-        pipeline.open_spider(mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
 
         # Add some items to buffer
         pipeline.items_buffer = [{"test": "item"}]
 
-        pipeline.close_spider(mock_spider)
+        pipeline.close_spider()
 
         # Buffer should be cleared after close
         assert len(pipeline.items_buffer) == 0
@@ -160,9 +202,15 @@ class TestUnityCatalogWriterPipeline:
         self, pipeline, mock_spider, valid_tractor_item
     ):
         """Test that process_item adds items to buffer."""
-        pipeline.open_spider(mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
 
-        result = pipeline.process_item(valid_tractor_item, mock_spider)
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
+
+        result = pipeline.process_item(valid_tractor_item)
 
         # Should return the item unchanged
         assert result == valid_tractor_item
@@ -173,7 +221,13 @@ class TestUnityCatalogWriterPipeline:
 
     def test_process_multiple_items(self, pipeline, mock_spider):
         """Test processing multiple items."""
-        pipeline.open_spider(mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
 
         items = [
             {
@@ -186,21 +240,27 @@ class TestUnityCatalogWriterPipeline:
         ]
 
         for item in items:
-            pipeline.process_item(item, mock_spider)
+            pipeline.process_item(item)
 
         # All items should be in buffer
         assert len(pipeline.items_buffer) == 5
 
     def test_buffer_flush_on_close(self, pipeline, mock_spider, valid_tractor_item):
         """Test that buffer is flushed when spider closes."""
-        pipeline.open_spider(mock_spider)
-        pipeline.process_item(valid_tractor_item, mock_spider)
+        # Set up the crawler attribute
+        from unittest.mock import Mock
+
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
+        pipeline.process_item(valid_tractor_item)
 
         # Buffer should have item
         assert len(pipeline.items_buffer) == 1
 
         # Close spider (should attempt to flush)
-        pipeline.close_spider(mock_spider)
+        pipeline.close_spider()
 
         # After close, buffer should be empty (even if write failed due to no
         # connection). The _write_batch method clears the buffer regardless of

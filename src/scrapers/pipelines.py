@@ -9,6 +9,7 @@ from typing import Any
 
 from pydantic import ValidationError
 from scrapy import Spider
+from scrapy.crawler import Crawler
 from scrapy.exceptions import DropItem
 
 from core.databricks_utils import TableManager
@@ -18,12 +19,25 @@ from core.models import create_equipment
 class ValidationPipeline:
     """Validate scraped items using Pydantic models."""
 
-    def process_item(self, item: dict, spider: Spider) -> dict:
+    @classmethod
+    def from_crawler(cls, crawler: Crawler) -> "ValidationPipeline":
+        """Create pipeline instance from crawler.
+
+        Args:
+            crawler: The crawler instance
+
+        Returns:
+            ValidationPipeline instance
+        """
+        pipeline = cls()
+        pipeline.crawler = crawler
+        return pipeline
+
+    def process_item(self, item: dict) -> dict:
         """Process and validate an item.
 
         Args:
             item: Scraped item dictionary
-            spider: Spider that scraped the item
 
         Returns:
             Validated item
@@ -38,7 +52,7 @@ class ValidationPipeline:
             # Convert back to dict for further processing
             validated_item: dict[Any, Any] = equipment.model_dump()
 
-            spider.logger.info(
+            self.crawler.spider.logger.info(
                 f"Validated {item.get('make')} {item.get('model')} "
                 f"({item.get('category')})"
             )
@@ -46,10 +60,12 @@ class ValidationPipeline:
             return validated_item
 
         except ValidationError as e:
-            spider.logger.error(f"Validation error for item {item}: {e}")
+            self.crawler.spider.logger.error(f"Validation error for item {item}: {e}")
             raise DropItem(f"Validation failed: {e}") from e
         except Exception as e:
-            spider.logger.error(f"Unexpected error validating item {item}: {e}")
+            self.crawler.spider.logger.error(
+                f"Unexpected error validating item {item}: {e}"
+            )
             raise DropItem(f"Validation failed: {e}") from e
 
 
@@ -66,13 +82,23 @@ class UnityCatalogWriterPipeline:
         self.buffer_size = 100  # Write in batches
         self.table_manager: TableManager | None = None
 
-    def open_spider(self, spider: Spider) -> None:
-        """Called when spider is opened.
+    @classmethod
+    def from_crawler(cls, crawler: Crawler) -> "UnityCatalogWriterPipeline":
+        """Create pipeline instance from crawler.
 
         Args:
-            spider: The spider being opened
+            crawler: The crawler instance
+
+        Returns:
+            UnityCatalogWriterPipeline instance
         """
-        spider.logger.info("Unity Catalog writer pipeline opened")
+        pipeline = cls()
+        pipeline.crawler = crawler
+        return pipeline
+
+    def open_spider(self) -> None:
+        """Called when spider is opened."""
+        self.crawler.spider.logger.info("Unity Catalog writer pipeline opened")
         self.items_buffer = []
 
         # Initialize Unity Catalog connection
@@ -80,38 +106,35 @@ class UnityCatalogWriterPipeline:
             from core.databricks_utils import get_table_manager
 
             self.table_manager = get_table_manager()
-            spider.logger.info("Connected to Unity Catalog")
+            self.crawler.spider.logger.info("Connected to Unity Catalog")
         except Exception as e:
-            spider.logger.warning(
+            self.crawler.spider.logger.warning(
                 f"Could not connect to Unity Catalog: {e}. "
                 "Items will be buffered but not written."
             )
 
-    def close_spider(self, spider: Spider) -> None:
-        """Called when spider is closed. Flush remaining items.
-
-        Args:
-            spider: The spider being closed
-        """
+    def close_spider(self) -> None:
+        """Called when spider is closed. Flush remaining items."""
         if self.items_buffer:
-            self._write_batch(spider)
+            self._write_batch()
 
         # Close Unity Catalog connection
         if self.table_manager:
             try:
                 self.table_manager.close()
-                spider.logger.info("Closed Unity Catalog connection")
+                self.crawler.spider.logger.info("Closed Unity Catalog connection")
             except Exception as e:
-                spider.logger.warning(f"Error closing Unity Catalog connection: {e}")
+                self.crawler.spider.logger.warning(
+                    f"Error closing Unity Catalog connection: {e}"
+                )
 
-        spider.logger.info("Unity Catalog writer pipeline closed")
+        self.crawler.spider.logger.info("Unity Catalog writer pipeline closed")
 
-    def process_item(self, item: dict, spider: Spider) -> dict:
+    def process_item(self, item: dict) -> dict:
         """Process an item by adding it to the buffer.
 
         Args:
             item: Validated item dictionary
-            spider: Spider that scraped the item
 
         Returns:
             The item (unchanged)
@@ -119,22 +142,18 @@ class UnityCatalogWriterPipeline:
         self.items_buffer.append(item)
 
         if len(self.items_buffer) >= self.buffer_size:
-            self._write_batch(spider)
+            self._write_batch()
 
         return item
 
-    def _write_batch(self, spider: Spider) -> None:
-        """Write buffered items to Unity Catalog Delta table.
-
-        Args:
-            spider: Spider instance for logging
-        """
-        spider.logger.info(
+    def _write_batch(self) -> None:
+        """Write buffered items to Unity Catalog Delta table."""
+        self.crawler.spider.logger.info(
             f"Writing batch of {len(self.items_buffer)} items to Unity Catalog"
         )
 
         if not self.table_manager:
-            spider.logger.warning(
+            self.crawler.spider.logger.warning(
                 "Table manager not initialized. Skipping batch write."
             )
             self.items_buffer = []
@@ -151,17 +170,19 @@ class UnityCatalogWriterPipeline:
             # Write to appropriate tables
             if tractors:
                 self.table_manager.insert_records("tractors", tractors)
-                spider.logger.info(f"Wrote {len(tractors)} tractors")
+                self.crawler.spider.logger.info(f"Wrote {len(tractors)} tractors")
 
             if combines:
                 self.table_manager.insert_records("combines", combines)
-                spider.logger.info(f"Wrote {len(combines)} combines")
+                self.crawler.spider.logger.info(f"Wrote {len(combines)} combines")
 
             if implements:
                 self.table_manager.insert_records("implements", implements)
-                spider.logger.info(f"Wrote {len(implements)} implements")
+                self.crawler.spider.logger.info(f"Wrote {len(implements)} implements")
 
         except Exception as e:
-            spider.logger.error(f"Error writing batch to Unity Catalog: {e}")
+            self.crawler.spider.logger.error(
+                f"Error writing batch to Unity Catalog: {e}"
+            )
 
         self.items_buffer = []
