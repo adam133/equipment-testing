@@ -108,7 +108,9 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         for url in self.start_urls:
             yield self._make_playwright_request(url, callback=self.parse)
 
-    def _make_playwright_request(self, url: str, callback: Any, make: str | None = None) -> Any:
+    def _make_playwright_request(
+        self, url: str, callback: Any, make: str | None = None
+    ) -> Any:
         """Create a Scrapy request with Playwright options.
 
         Args:
@@ -130,16 +132,22 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 # Wait for the page to load
                 "page.wait_for_load_state('networkidle')",
                 # Wait for filter elements to be available
-                "page.wait_for_selector('select, .filter-select, [data-filter-make]', timeout=10000)",
+                (
+                    "page.wait_for_selector("
+                    "'select, .filter-select, [data-filter-make]', "
+                    "timeout=10000)"
+                ),
                 # Try to find and click the make filter dropdown
                 f"page.evaluate('() => {{ "
                 f"  const selects = document.querySelectorAll('select'); "
                 f"  for (const select of selects) {{ "
                 f"    const options = Array.from(select.options); "
-                f"    const option = options.find(opt => opt.text.includes(\"{make}\")); "
+                f'    const option = options.find(opt => opt.text.includes("{make}")); '
                 f"    if (option) {{ "
                 f"      select.value = option.value; "
-                f"      select.dispatchEvent(new Event('change', {{ bubbles: true }})); "
+                f"      select.dispatchEvent("
+                f"        new Event('change', {{ bubbles: true }})"
+                f"      ); "
                 f"      return true; "
                 f"    }} "
                 f"  }} "
@@ -179,7 +187,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             await page.close()
         self.logger.error(f"Error processing {failure.request.url}: {failure}")
 
-    def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    def parse(self, response: Response) -> Iterator[dict[str, Any] | Any]:
         """Parse the main tractor specs page.
 
         This method handles both initial page load and filtered results.
@@ -204,12 +212,14 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         if page:
             # Schedule page close asynchronously
             import asyncio
+
             asyncio.create_task(page.close())
 
         # If we haven't applied a make filter yet, iterate through target makes
         if not make_filter and self.target_makes:
             self.logger.info(
-                f"No make filter active. Will iterate through {len(self.target_makes)} target makes."
+                f"No make filter active. Will iterate through "
+                f"{len(self.target_makes)} target makes."
             )
             for make in self.target_makes:
                 yield self._make_playwright_request(
@@ -238,15 +248,21 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                     "div[class*='tractor'], li[class*='product']"
                 )
                 if product_items:
-                    self.logger.info(f"Found {len(product_items)} potential product items")
+                    self.logger.info(
+                        f"Found {len(product_items)} potential product items"
+                    )
                     yield from self._parse_cards(response, product_items)
                 else:
                     # Strategy 4: Try to find links to individual tractor pages
-                    tractor_links = response.css('a[href*="tractor"]::attr(href)').getall()
+                    tractor_links = response.css(
+                        'a[href*="tractor"]::attr(href)'
+                    ).getall()
                     if tractor_links:
                         self.logger.info(f"Found {len(tractor_links)} tractor links")
                         for link in tractor_links[:10]:  # Limit to first 10 for example
-                            yield response.follow(link, callback=self.parse_tractor_detail)
+                            yield response.follow(
+                                link, callback=self.parse_tractor_detail
+                            )
                     else:
                         self.logger.warning(
                             f"No tractors found on page. "
@@ -279,7 +295,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                     continue
 
                 # Extract other fields based on table structure
-                item_data = {
+                item_data: dict[str, Any] = {
                     "make": make,
                     "model": model,
                     "category": EquipmentCategory.TRACTOR,
@@ -332,7 +348,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 if self.target_makes and make not in self.target_makes:
                     continue
 
-                item_data = {
+                item_data: dict[str, Any] = {
                     "make": make,
                     "model": model,
                     "category": EquipmentCategory.TRACTOR,
@@ -391,7 +407,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         if self.target_makes and make not in self.target_makes:
             return
 
-        item_data = {
+        item_data: dict[str, Any] = {
             "make": make,
             "model": model,
             "category": EquipmentCategory.TRACTOR,
