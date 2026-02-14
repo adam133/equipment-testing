@@ -133,53 +133,70 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         if make and model_index is not None:
             # Actions to select both make and model from tractor-specific filters
             playwright_page_actions = [
-                # Wait for the page to load
-                "page.wait_for_load_state('networkidle')",
+                # Wait for the page to load completely
+                "page.wait_for_load_state('load')",
                 # Wait for tractor-make dropdown to be available
                 "page.wait_for_selector('#tractor-make', timeout=10000)",
-                # Wait for AJAX to populate the make dropdown
-                "page.wait_for_timeout(3000)",
+                # Wait for jQuery to load (required for AJAX calls)
+                "page.wait_for_function('() => typeof $ === \"function\"', timeout=20000)",
+                # Wait additional time for document ready and initial AJAX to complete
+                "page.wait_for_timeout(5000)",
+                # Check if make dropdown is populated, if not trigger AJAX manually
+                f"page.evaluate('() => {{ "
+                f"  const makeSelect = document.querySelector('#tractor-make'); "
+                f"  if (!makeSelect) return {{ error: 'Make select not found' }}; "
+                f"  "
+                f"  // If dropdown only has placeholder, trigger AJAX manually "
+                f"  if (makeSelect.options.length <= 1) {{ "
+                f"    // Manually call the AJAX endpoint "
+                f"    return new Promise((resolve) => {{ "
+                f"      $.getJSON('https://app.smalink.net/pim/tractor-specs.php?tractor_make=tractor-specs-make', function(result) {{ "
+                f"        if (result && result.data) {{ "
+                f"          result.data.forEach(function(data) {{ "
+                f"            $('#tractor-make').append('<option value=\"' + data.make_slug + '\">' + data.make + '</option>'); "
+                f"          }}); "
+                f"        }} "
+                f"        resolve({{ manually_loaded: true, count: result.data.length }}); "
+                f"      }}); "
+                f"    }}); "
+                f"  }} "
+                f"  return {{ already_loaded: true, count: makeSelect.options.length }}; "
+                f"}}')",
+                # Wait for make dropdown population
+                "page.wait_for_timeout(2000)",
                 # Select the make from #tractor-make dropdown
                 f"page.evaluate('() => {{ "
                 f"  const makeSelect = document.querySelector('#tractor-make'); "
-                f"  if (!makeSelect) return false; "
+                f"  if (!makeSelect) return {{ error: 'Make select not found' }}; "
                 f"  const options = Array.from(makeSelect.options); "
                 f'  const option = options.find(opt => opt.text.includes("{make}")); '
                 f"  if (option) {{ "
                 f"    makeSelect.value = option.value; "
-                f"    makeSelect.dispatchEvent("
-                f"      new Event('change', {{ bubbles: true }})"
-                f"    ); "
-                f"    return option.value; "
+                f"    makeSelect.dispatchEvent(new Event('change', {{ bubbles: true }})); "
+                f"    return {{ success: true, selected: option.text, value: option.value }}; "
                 f"  }} "
-                f"  return false; "
+                f"  return {{ error: 'Make option not found', available: options.map(o => o.text) }}; "
                 f"}}')",
                 # Wait for model dropdown to populate via AJAX
-                "page.wait_for_timeout(3000)",
+                "page.wait_for_timeout(5000)",
                 # Select the model by index from #tractor-model dropdown
                 f"page.evaluate('() => {{ "
                 f"  const modelSelect = document.querySelector('#tractor-model'); "
-                f"  if (!modelSelect) return null; "
+                f"  if (!modelSelect) return {{ error: 'Model select not found' }}; "
                 f"  const options = Array.from(modelSelect.options); "
                 f"  // Skip first option (placeholder 'Select One') "
                 f"  const targetIndex = {model_index + 1}; "
                 f"  if (targetIndex < options.length) {{ "
                 f"    modelSelect.value = options[targetIndex].value; "
-                f"    modelSelect.dispatchEvent("
-                f"      new Event('change', {{ bubbles: true }})"
-                f"    ); "
-                f"    return options[targetIndex].text; "
+                f"    modelSelect.dispatchEvent(new Event('change', {{ bubbles: true }})); "
+                f"    return {{ success: true, selected: options[targetIndex].text, value: options[targetIndex].value }}; "
                 f"  }} "
-                f"  return null; "
+                f"  return {{ error: 'Model index out of range', available: options.length, requested: targetIndex }}; "
                 f"}}')",
                 # Wait for tractor details data to load via AJAX
-                "page.wait_for_timeout(3000)",
+                "page.wait_for_timeout(5000)",
                 # Wait for the details table to appear
-                (
-                    "page.wait_for_selector("
-                    "'#tractor-details, .tractor-details-data', "
-                    "timeout=5000)"
-                ),
+                "page.wait_for_selector('#tractor-details, .tractor-details-data', timeout=10000)",
             ]
         elif make:
             # Actions to select only make from the filter
