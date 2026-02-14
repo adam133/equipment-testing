@@ -52,7 +52,7 @@ class UnityCatalogConfig(BaseModel):
 
     token: str  # Unity Catalog API token
     endpoint: str  # Unity Catalog endpoint URL
-    aws_region: str = "us-east-1"  # Cloud region (AWS/Azure/GCP)
+    aws_region: str = "us-east-2"  # Cloud region (AWS/Azure/GCP)
     catalog_name: str = "equip"
     schema_name: str = "ag_equipment"
 
@@ -402,7 +402,7 @@ def get_table_manager(
     Args:
         token: Unity Catalog API token (defaults to DATABRICKS_TOKEN env var)
         endpoint: Unity Catalog endpoint URL (defaults to DATABRICKS_HOST env var)
-        aws_region: Cloud region (defaults to us-east-1)
+        aws_region: Cloud region (defaults to us-east-2)
 
     Returns:
         Configured TableManager instance
@@ -414,13 +414,17 @@ def get_table_manager(
     final_endpoint = (
         endpoint if endpoint is not None else os.getenv("DATABRICKS_HOST", "")
     )
-    final_aws_region = aws_region if aws_region is not None else "us-east-1"
+    final_aws_region = aws_region if aws_region is not None else "us-east-2"
 
     # Validate required credentials
     if not final_token:
         raise ValueError("Missing required environment variable: DATABRICKS_TOKEN")
     if not final_endpoint:
         raise ValueError("Missing required environment variable: DATABRICKS_HOST")
+
+    # Format token with Bearer prefix if not already present
+    if not final_token.startswith("Bearer "):
+        final_token = f"Bearer {final_token}"
 
     # Format endpoint as Unity Catalog API URL if needed
     if not final_endpoint.startswith("http"):
