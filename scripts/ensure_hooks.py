@@ -27,19 +27,31 @@ def are_hooks_installed() -> bool:
 def install_hooks() -> bool:
     """Install pre-commit hooks."""
     try:
+        # Try using uv run first (recommended for this project)
         result = subprocess.run(
-            ["pre-commit", "install"],
+            ["uv", "run", "pre-commit", "install"],
             capture_output=True,
             text=True,
             check=True
         )
         print(result.stdout)
         return True
+    except FileNotFoundError:
+        # Fall back to direct pre-commit command
+        try:
+            result = subprocess.run(
+                ["pre-commit", "install"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print(result.stdout)
+            return True
+        except FileNotFoundError:
+            print("Error: pre-commit is not installed. Run 'uv sync --dev' first.", file=sys.stderr)
+            return False
     except subprocess.CalledProcessError as e:
         print(f"Error installing pre-commit hooks: {e.stderr}", file=sys.stderr)
-        return False
-    except FileNotFoundError:
-        print("Error: pre-commit is not installed. Run 'uv sync --dev' first.", file=sys.stderr)
         return False
 
 
