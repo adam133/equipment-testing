@@ -5,7 +5,6 @@ from unittest.mock import Mock
 
 import pytest
 from scrapy import Spider
-from scrapy.exceptions import DropItem
 
 from core.models import EquipmentCategory
 from scrapers.pipelines import UnityCatalogWriterPipeline, ValidationPipeline
@@ -71,13 +70,21 @@ class TestValidationPipeline:
         assert result["category"] == EquipmentCategory.TRACTOR.value
 
     def test_process_invalid_item(self, pipeline, mock_spider, invalid_item):
-        """Test processing an invalid item raises DropItem."""
+        """Test processing an invalid item returns error item."""
         # Set up the crawler attribute
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
-        with pytest.raises(DropItem):
-            pipeline.process_item(invalid_item)
+        result = pipeline.process_item(invalid_item)
+
+        # Should return error item instead of raising DropItem
+        assert result is not None
+        assert "_validation_error" in result
+        assert "_error_type" in result
+        assert result["_error_type"] == "ValidationError"
+        # Original data should be preserved
+        assert result["make"] == "John Deere"
+        assert result["category"] == "tractor"
 
     def test_process_item_with_extra_fields(self, pipeline, mock_spider):
         """Test that extra fields are handled correctly."""
@@ -155,6 +162,7 @@ class TestUnityCatalogWriterPipeline:
     def test_pipeline_initialization(self, pipeline):
         """Test that pipeline initializes correctly."""
         assert pipeline.items_buffer == []
+        assert pipeline.error_items_buffer == []
         assert pipeline.buffer_size == 100
         assert pipeline.table_manager is None
 
@@ -166,8 +174,9 @@ class TestUnityCatalogWriterPipeline:
 
         pipeline.open_spider()
 
-        # Buffer should be reset
+        # Buffers should be reset
         assert pipeline.items_buffer == []
+        assert pipeline.error_items_buffer == []
 
     def test_close_spider(self, pipeline, mock_spider):
         """Test close_spider cleanup."""
@@ -247,6 +256,88 @@ class TestUnityCatalogWriterPipeline:
         # connection). The _write_batch method clears the buffer regardless of
         # write success
         assert len(pipeline.items_buffer) == 0
+
+    def test_process_error_item_adds_to_error_buffer(self, pipeline, mock_spider):
+        """Test that error items are added to error buffer."""
+        # Set up the crawler attribute
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
+
+        # Create an error item
+        error_item = {
+            "make": "John Deere",
+            "category": "tractor",
+            "_validation_error": "Field required: model",
+            "_error_type": "ValidationError",
+        }
+
+        result = pipeline.process_item(error_item)
+
+        # Should return the item unchanged
+        assert result == error_item
+
+        # Should add to error buffer, not regular buffer
+        assert len(pipeline.error_items_buffer) == 1
+        assert len(pipeline.items_buffer) == 0
+        assert pipeline.error_items_buffer[0] == error_item
+
+    def test_error_buffer_flush_on_close(self, pipeline, mock_spider):
+        """Test that error buffer is flushed when spider closes."""
+        # Set up the crawler attribute
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
+
+        error_item = {
+            "make": "John Deere",
+            "category": "tractor",
+            "_validation_error": "Field required: model",
+            "_error_type": "ValidationError",
+        }
+
+        pipeline.process_item(error_item)
+
+        # Error buffer should have item
+        assert len(pipeline.error_items_buffer) == 1
+
+        # Close spider (should attempt to flush)
+        pipeline.close_spider()
+
+        # After close, error buffer should be empty
+        assert len(pipeline.error_items_buffer) == 0
+
+    def test_mixed_valid_and_error_items(
+        self, pipeline, mock_spider, valid_tractor_item
+    ):
+        """Test processing both valid and error items."""
+        # Set up the crawler attribute
+        pipeline.crawler = Mock()
+        pipeline.crawler.spider = mock_spider
+
+        pipeline.open_spider()
+
+        # Process valid item
+        pipeline.process_item(valid_tractor_item)
+
+        # Process error item
+        error_item = {
+            "make": "Case IH",
+            "category": "combine",
+            "_validation_error": "Invalid separator_type",
+            "_error_type": "ValidationError",
+        }
+        pipeline.process_item(error_item)
+
+        # Valid item should be in items buffer
+        assert len(pipeline.items_buffer) == 1
+        assert pipeline.items_buffer[0] == valid_tractor_item
+
+        # Error item should be in error buffer
+        assert len(pipeline.error_items_buffer) == 1
+        assert pipeline.error_items_buffer[0] == error_item
 
 
 class TestPipelineConfiguration:
