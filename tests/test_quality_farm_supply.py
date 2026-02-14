@@ -447,25 +447,40 @@ def test_make_playwright_request_with_model_index(spider):
 
 
 def test_parse_model_data_with_attributes(spider):
-    """Test parsing model-specific data with attributes container."""
+    """Test parsing model-specific data with tractor details table."""
     html = """
     <html>
         <body>
-            <div class="specs">
-                <h2>John Deere 5075E</h2>
-                <dl>
-                    <dt>Series</dt>
-                    <dd>5E Series</dd>
-                    <dt>Engine HP</dt>
-                    <dd>75 HP</dd>
-                    <dt>PTO HP</dt>
-                    <dd>65 HP</dd>
-                    <dt>Weight</dt>
-                    <dd>7,700 lbs</dd>
-                    <dt>Transmission</dt>
-                    <dd>PowerShift</dd>
-                </dl>
-            </div>
+            <select id="tractor-model">
+                <option value="">Select One</option>
+                <option value="5075e" selected>5075E</option>
+            </select>
+            <table id="tractor-details" class="tractor-details-data">
+                <tr>
+                    <td>Model</td>
+                    <td>5075E</td>
+                </tr>
+                <tr>
+                    <td>Series</td>
+                    <td>5E Series</td>
+                </tr>
+                <tr>
+                    <td>Engine HP</td>
+                    <td>75 HP</td>
+                </tr>
+                <tr>
+                    <td>PTO HP</td>
+                    <td>65 HP</td>
+                </tr>
+                <tr>
+                    <td>Weight</td>
+                    <td>7,700 lbs</td>
+                </tr>
+                <tr>
+                    <td>Transmission</td>
+                    <td>PowerShift</td>
+                </tr>
+            </table>
         </body>
     </html>
     """
