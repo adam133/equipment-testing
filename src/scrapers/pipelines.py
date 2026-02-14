@@ -212,25 +212,42 @@ class UnityCatalogWriterPipeline:
             return
 
         try:
-            # Group by category
-            tractors = [i for i in self.items_buffer if i.get("category") == "tractor"]
-            combines = [i for i in self.items_buffer if i.get("category") == "combine"]
-            implements = [
-                i for i in self.items_buffer if i.get("category") == "implement"
-            ]
+            # Group by category in a single pass for efficiency
+            items_by_category: dict[str, list[dict]] = {
+                "tractor": [],
+                "combine": [],
+                "implement": [],
+            }
+
+            for item in self.items_buffer:
+                category = item.get("category")
+                if category in items_by_category:
+                    items_by_category[category].append(item)
 
             # Write to appropriate tables
-            if tractors:
-                self.table_manager.insert_records("tractors", tractors)
-                self.spider.logger.info(f"Wrote {len(tractors)} tractors")
+            if items_by_category["tractor"]:
+                self.table_manager.insert_records(
+                    "tractors", items_by_category["tractor"]
+                )
+                self.spider.logger.info(
+                    f"Wrote {len(items_by_category['tractor'])} tractors"
+                )
 
-            if combines:
-                self.table_manager.insert_records("combines", combines)
-                self.spider.logger.info(f"Wrote {len(combines)} combines")
+            if items_by_category["combine"]:
+                self.table_manager.insert_records(
+                    "combines", items_by_category["combine"]
+                )
+                self.spider.logger.info(
+                    f"Wrote {len(items_by_category['combine'])} combines"
+                )
 
-            if implements:
-                self.table_manager.insert_records("implements", implements)
-                self.spider.logger.info(f"Wrote {len(implements)} implements")
+            if items_by_category["implement"]:
+                self.table_manager.insert_records(
+                    "implements", items_by_category["implement"]
+                )
+                self.spider.logger.info(
+                    f"Wrote {len(items_by_category['implement'])} implements"
+                )
 
         except Exception as e:
             self.spider.logger.error(f"Error writing batch to Unity Catalog: {e}")
@@ -252,34 +269,44 @@ class UnityCatalogWriterPipeline:
             return
 
         try:
-            # Group by category (use intended category, not validated)
-            error_tractors = [
-                i for i in self.error_items_buffer if i.get("category") == "tractor"
-            ]
-            error_combines = [
-                i for i in self.error_items_buffer if i.get("category") == "combine"
-            ]
-            error_implements = [
-                i for i in self.error_items_buffer if i.get("category") == "implement"
-            ]
+            # Group by category in a single pass for efficiency
+            error_items_by_category: dict[str, list[dict]] = {
+                "tractor": [],
+                "combine": [],
+                "implement": [],
+            }
+
+            for error_item in self.error_items_buffer:
+                category = error_item.get("category")
+                if category in error_items_by_category:
+                    error_items_by_category[category].append(error_item)
 
             # Write to appropriate error tables
-            if error_tractors:
-                self.table_manager.insert_records("tractors_error", error_tractors)
+            if error_items_by_category["tractor"]:
+                self.table_manager.insert_records(
+                    "tractors_error", error_items_by_category["tractor"]
+                )
                 self.spider.logger.info(
-                    f"Wrote {len(error_tractors)} failed tractors to error table"
+                    f"Wrote {len(error_items_by_category['tractor'])} "
+                    "failed tractors to error table"
                 )
 
-            if error_combines:
-                self.table_manager.insert_records("combines_error", error_combines)
+            if error_items_by_category["combine"]:
+                self.table_manager.insert_records(
+                    "combines_error", error_items_by_category["combine"]
+                )
                 self.spider.logger.info(
-                    f"Wrote {len(error_combines)} failed combines to error table"
+                    f"Wrote {len(error_items_by_category['combine'])} "
+                    "failed combines to error table"
                 )
 
-            if error_implements:
-                self.table_manager.insert_records("implements_error", error_implements)
+            if error_items_by_category["implement"]:
+                self.table_manager.insert_records(
+                    "implements_error", error_items_by_category["implement"]
+                )
                 self.spider.logger.info(
-                    f"Wrote {len(error_implements)} failed implements to error table"
+                    f"Wrote {len(error_items_by_category['implement'])} "
+                    "failed implements to error table"
                 )
 
         except Exception as e:
