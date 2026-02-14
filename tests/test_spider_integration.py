@@ -24,7 +24,7 @@ class TestSpiderIntegration:
     def test_quality_farm_supply_spider_runs_without_errors(
         self, project_root: Path, tmp_path: Path
     ):
-        """Test that the quality_farm_supply spider can start without configuration errors.
+        """Test that spider can start without configuration errors.
 
         This test runs the spider with closespider_pagecount=1 to limit
         crawling to just one page, verifying that:
@@ -71,24 +71,24 @@ class TestSpiderIntegration:
         )
 
         # Should not have the CONCURRENT_REQUESTS_PER_IP error specifically
-        assert (
-            "does not support concurrent_requests_per_ip" not in output_lower
-        ), f"CONCURRENT_REQUESTS_PER_IP error found\nOutput: {output}"
+        assert "does not support concurrent_requests_per_ip" not in output_lower, (
+            f"CONCURRENT_REQUESTS_PER_IP error found\nOutput: {output}"
+        )
 
         # Should not have these critical errors at startup
         assert "scraper slot not assigned" not in output_lower, (
-            "Scraper slot error (indicates startup failure)\n" f"Output: {output}"
+            f"Scraper slot error (indicates startup failure)\nOutput: {output}"
         )
         assert "'scheduler' object has no attribute" not in output_lower, (
-            "Scheduler attribute error (indicates startup failure)\n" f"Output: {output}"
+            f"Scheduler attribute error (indicates startup failure)\nOutput: {output}"
         )
         assert "error caught on signal handler" not in output_lower, (
-            "Signal handler error\n" f"Output: {output}"
+            f"Signal handler error\nOutput: {output}"
         )
 
         # Should not have these deprecation warnings
         assert "concurrent_requests_per_ip setting is deprecated" not in output_lower, (
-            "CONCURRENT_REQUESTS_PER_IP deprecation warning found\n" f"Output: {output}"
+            f"CONCURRENT_REQUESTS_PER_IP deprecation warning found\nOutput: {output}"
         )
         assert (
             "pipeline.process_item() requires a spider argument" not in output_lower
@@ -148,9 +148,9 @@ class TestSpiderIntegration:
         )
 
         # Check that from_crawler is a classmethod
-        assert isinstance(
-            ValidationPipeline.__dict__["from_crawler"], classmethod
-        ), "ValidationPipeline.from_crawler should be a classmethod"
+        assert isinstance(ValidationPipeline.__dict__["from_crawler"], classmethod), (
+            "ValidationPipeline.from_crawler should be a classmethod"
+        )
 
         assert isinstance(
             UnityCatalogWriterPipeline.__dict__["from_crawler"], classmethod

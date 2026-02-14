@@ -19,6 +19,8 @@ from core.models import create_equipment
 class ValidationPipeline:
     """Validate scraped items using Pydantic models."""
 
+    crawler: Crawler
+
     @classmethod
     def from_crawler(cls, crawler: Crawler) -> "ValidationPipeline":
         """Create pipeline instance from crawler.
@@ -32,6 +34,20 @@ class ValidationPipeline:
         pipeline = cls()
         pipeline.crawler = crawler
         return pipeline
+
+    @property
+    def spider(self) -> Spider:
+        """Get the spider instance from the crawler.
+
+        Returns:
+            The spider instance
+
+        Raises:
+            RuntimeError: If spider is not set
+        """
+        if self.crawler.spider is None:
+            raise RuntimeError("Spider not initialized")
+        return self.crawler.spider
 
     def process_item(self, item: dict) -> dict:
         """Process and validate an item.
@@ -52,7 +68,7 @@ class ValidationPipeline:
             # Convert back to dict for further processing
             validated_item: dict[Any, Any] = equipment.model_dump()
 
-            self.crawler.spider.logger.info(
+            self.spider.logger.info(
                 f"Validated {item.get('make')} {item.get('model')} "
                 f"({item.get('category')})"
             )
@@ -60,12 +76,10 @@ class ValidationPipeline:
             return validated_item
 
         except ValidationError as e:
-            self.crawler.spider.logger.error(f"Validation error for item {item}: {e}")
+            self.spider.logger.error(f"Validation error for item {item}: {e}")
             raise DropItem(f"Validation failed: {e}") from e
         except Exception as e:
-            self.crawler.spider.logger.error(
-                f"Unexpected error validating item {item}: {e}"
-            )
+            self.spider.logger.error(f"Unexpected error validating item {item}: {e}")
             raise DropItem(f"Validation failed: {e}") from e
 
 
@@ -75,6 +89,8 @@ class UnityCatalogWriterPipeline:
     This pipeline stages validated equipment data for writing to Unity Catalog
     using DuckDB.
     """
+
+    crawler: Crawler
 
     def __init__(self) -> None:
         """Initialize the pipeline."""
@@ -96,9 +112,23 @@ class UnityCatalogWriterPipeline:
         pipeline.crawler = crawler
         return pipeline
 
+    @property
+    def spider(self) -> Spider:
+        """Get the spider instance from the crawler.
+
+        Returns:
+            The spider instance
+
+        Raises:
+            RuntimeError: If spider is not set
+        """
+        if self.crawler.spider is None:
+            raise RuntimeError("Spider not initialized")
+        return self.crawler.spider
+
     def open_spider(self) -> None:
         """Called when spider is opened."""
-        self.crawler.spider.logger.info("Unity Catalog writer pipeline opened")
+        self.spider.logger.info("Unity Catalog writer pipeline opened")
         self.items_buffer = []
 
         # Initialize Unity Catalog connection
@@ -106,9 +136,9 @@ class UnityCatalogWriterPipeline:
             from core.databricks_utils import get_table_manager
 
             self.table_manager = get_table_manager()
-            self.crawler.spider.logger.info("Connected to Unity Catalog")
+            self.spider.logger.info("Connected to Unity Catalog")
         except Exception as e:
-            self.crawler.spider.logger.warning(
+            self.spider.logger.warning(
                 f"Could not connect to Unity Catalog: {e}. "
                 "Items will be buffered but not written."
             )
@@ -122,13 +152,13 @@ class UnityCatalogWriterPipeline:
         if self.table_manager:
             try:
                 self.table_manager.close()
-                self.crawler.spider.logger.info("Closed Unity Catalog connection")
+                self.spider.logger.info("Closed Unity Catalog connection")
             except Exception as e:
-                self.crawler.spider.logger.warning(
+                self.spider.logger.warning(
                     f"Error closing Unity Catalog connection: {e}"
                 )
 
-        self.crawler.spider.logger.info("Unity Catalog writer pipeline closed")
+        self.spider.logger.info("Unity Catalog writer pipeline closed")
 
     def process_item(self, item: dict) -> dict:
         """Process an item by adding it to the buffer.
@@ -148,12 +178,12 @@ class UnityCatalogWriterPipeline:
 
     def _write_batch(self) -> None:
         """Write buffered items to Unity Catalog Delta table."""
-        self.crawler.spider.logger.info(
+        self.spider.logger.info(
             f"Writing batch of {len(self.items_buffer)} items to Unity Catalog"
         )
 
         if not self.table_manager:
-            self.crawler.spider.logger.warning(
+            self.spider.logger.warning(
                 "Table manager not initialized. Skipping batch write."
             )
             self.items_buffer = []
@@ -170,19 +200,17 @@ class UnityCatalogWriterPipeline:
             # Write to appropriate tables
             if tractors:
                 self.table_manager.insert_records("tractors", tractors)
-                self.crawler.spider.logger.info(f"Wrote {len(tractors)} tractors")
+                self.spider.logger.info(f"Wrote {len(tractors)} tractors")
 
             if combines:
                 self.table_manager.insert_records("combines", combines)
-                self.crawler.spider.logger.info(f"Wrote {len(combines)} combines")
+                self.spider.logger.info(f"Wrote {len(combines)} combines")
 
             if implements:
                 self.table_manager.insert_records("implements", implements)
-                self.crawler.spider.logger.info(f"Wrote {len(implements)} implements")
+                self.spider.logger.info(f"Wrote {len(implements)} implements")
 
         except Exception as e:
-            self.crawler.spider.logger.error(
-                f"Error writing batch to Unity Catalog: {e}"
-            )
+            self.spider.logger.error(f"Error writing batch to Unity Catalog: {e}")
 
         self.items_buffer = []
