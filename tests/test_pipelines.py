@@ -1,6 +1,7 @@
 """Tests for Scrapy pipelines and pipeline configuration."""
 
 import importlib
+from unittest.mock import Mock
 
 import pytest
 from scrapy import Spider
@@ -58,8 +59,6 @@ class TestValidationPipeline:
     def test_process_valid_item(self, pipeline, mock_spider, valid_tractor_item):
         """Test processing a valid item."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -74,8 +73,6 @@ class TestValidationPipeline:
     def test_process_invalid_item(self, pipeline, mock_spider, invalid_item):
         """Test processing an invalid item raises DropItem."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -85,8 +82,6 @@ class TestValidationPipeline:
     def test_process_item_with_extra_fields(self, pipeline, mock_spider):
         """Test that extra fields are handled correctly."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -107,8 +102,6 @@ class TestValidationPipeline:
     def test_process_combine_item(self, pipeline, mock_spider):
         """Test processing a combine harvester item."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -131,8 +124,6 @@ class TestValidationPipeline:
     def test_process_implement_item(self, pipeline, mock_spider):
         """Test processing an implement item."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -170,8 +161,6 @@ class TestUnityCatalogWriterPipeline:
     def test_open_spider(self, pipeline, mock_spider):
         """Test open_spider initialization."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -183,8 +172,6 @@ class TestUnityCatalogWriterPipeline:
     def test_close_spider(self, pipeline, mock_spider):
         """Test close_spider cleanup."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -203,8 +190,6 @@ class TestUnityCatalogWriterPipeline:
     ):
         """Test that process_item adds items to buffer."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -222,8 +207,6 @@ class TestUnityCatalogWriterPipeline:
     def test_process_multiple_items(self, pipeline, mock_spider):
         """Test processing multiple items."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 
@@ -248,8 +231,6 @@ class TestUnityCatalogWriterPipeline:
     def test_buffer_flush_on_close(self, pipeline, mock_spider, valid_tractor_item):
         """Test that buffer is flushed when spider closes."""
         # Set up the crawler attribute
-        from unittest.mock import Mock
-
         pipeline.crawler = Mock()
         pipeline.crawler.spider = mock_spider
 

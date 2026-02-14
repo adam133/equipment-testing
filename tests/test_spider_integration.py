@@ -7,6 +7,7 @@ These tests actually run the spiders with limited crawling to verify:
 4. No deprecation warnings are raised
 """
 
+import inspect
 import subprocess
 from pathlib import Path
 
@@ -61,19 +62,18 @@ class TestSpiderIntegration:
         output = result.stdout + "\n" + result.stderr
         output_lower = output.lower()
 
-        # Check for critical configuration errors that should not happen
-        assert "valueerror" not in output_lower or (
-            "valueerror" in output_lower
-            and "concurrent_requests_per_ip" not in output_lower
-        ), (
-            f"Spider raised ValueError about CONCURRENT_REQUESTS_PER_IP\n"
-            f"Output: {output}"
-        )
-
         # Should not have the CONCURRENT_REQUESTS_PER_IP error specifically
         assert "does not support concurrent_requests_per_ip" not in output_lower, (
             f"CONCURRENT_REQUESTS_PER_IP error found\nOutput: {output}"
         )
+
+        # Check for ValueError, but allow unrelated ValueErrors
+        # (only fail if it's the specific CONCURRENT_REQUESTS_PER_IP error)
+        if "valueerror" in output_lower:
+            assert "concurrent_requests_per_ip" not in output_lower, (
+                f"Spider raised ValueError about CONCURRENT_REQUESTS_PER_IP\n"
+                f"Output: {output}"
+            )
 
         # Should not have these critical errors at startup
         assert "scraper slot not assigned" not in output_lower, (
@@ -147,11 +147,17 @@ class TestSpiderIntegration:
             "UnityCatalogWriterPipeline should have from_crawler method"
         )
 
-        # Check that from_crawler is a classmethod
-        assert isinstance(ValidationPipeline.__dict__["from_crawler"], classmethod), (
-            "ValidationPipeline.from_crawler should be a classmethod"
+        # Check that from_crawler is callable and is a classmethod
+        assert callable(ValidationPipeline.from_crawler), (
+            "ValidationPipeline.from_crawler should be callable"
+        )
+        assert inspect.ismethod(ValidationPipeline.from_crawler), (
+            "ValidationPipeline.from_crawler should be a method"
         )
 
-        assert isinstance(
-            UnityCatalogWriterPipeline.__dict__["from_crawler"], classmethod
-        ), "UnityCatalogWriterPipeline.from_crawler should be a classmethod"
+        assert callable(UnityCatalogWriterPipeline.from_crawler), (
+            "UnityCatalogWriterPipeline.from_crawler should be callable"
+        )
+        assert inspect.ismethod(UnityCatalogWriterPipeline.from_crawler), (
+            "UnityCatalogWriterPipeline.from_crawler should be a method"
+        )
