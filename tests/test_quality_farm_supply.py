@@ -470,7 +470,17 @@ def test_parse_model_data_with_attributes(spider):
     </html>
     """
     url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
-    request = Request(url=url, meta={"make_filter": "John Deere", "model_index": 0})
+
+    # Test using the spider's method to create request
+    request = spider._make_playwright_request(
+        url, callback=spider.parse_model_data, make="John Deere", model_index=0
+    )
+
+    # Verify meta values are set correctly
+    assert request.meta["make_filter"] == "John Deere"
+    assert request.meta["model_index"] == 0
+
+    # Create response from that request
     response = HtmlResponse(url=url, body=html, encoding="utf-8", request=request)
 
     results = list(spider.parse_model_data(response))

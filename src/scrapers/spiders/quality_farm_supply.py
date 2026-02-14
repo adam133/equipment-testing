@@ -322,10 +322,13 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             attribute_items = container.css(".attribute-item, .spec-item, dt, tr")
             if attribute_items and len(attribute_items) > 2:
                 # Found structured attributes, try to extract model info
-                model_num = (model_index + 1) if model_index is not None else 0
+                fallback_model_number = (
+                    (model_index + 1) if model_index is not None else 0
+                )
+                make_name = make_filter or "Unknown"
                 item_data = {
-                    "make": make_filter or "Unknown",
-                    "model": f"Model {model_num}",  # Fallback
+                    "make": make_name,
+                    "model": f"Unknown_Model_{make_name}_{fallback_model_number}",
                     "category": EquipmentCategory.TRACTOR,
                     "source_url": response.url,
                 }
