@@ -138,30 +138,40 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 # Wait for tractor-make dropdown to be available
                 "page.wait_for_selector('#tractor-make', timeout=10000)",
                 # Wait for jQuery to load (required for AJAX calls)
-                "page.wait_for_function('() => typeof $ === \"function\"', timeout=20000)",
+                (  # noqa: E501
+                    "page.wait_for_function("
+                    "'() => typeof $ === \"function\"', "
+                    "timeout=20000)"
+                ),
                 # Wait additional time for document ready and initial AJAX to complete
                 "page.wait_for_timeout(5000)",
                 # Check if make dropdown is populated, if not trigger AJAX manually
-                f"page.evaluate('() => {{ "
-                f"  const makeSelect = document.querySelector('#tractor-make'); "
-                f"  if (!makeSelect) return {{ error: 'Make select not found' }}; "
-                f"  "
-                f"  // If dropdown only has placeholder, trigger AJAX manually "
-                f"  if (makeSelect.options.length <= 1) {{ "
-                f"    // Manually call the AJAX endpoint "
-                f"    return new Promise((resolve) => {{ "
-                f"      $.getJSON('https://app.smalink.net/pim/tractor-specs.php?tractor_make=tractor-specs-make', function(result) {{ "
-                f"        if (result && result.data) {{ "
-                f"          result.data.forEach(function(data) {{ "
-                f"            $('#tractor-make').append('<option value=\"' + data.make_slug + '\">' + data.make + '</option>'); "
-                f"          }}); "
-                f"        }} "
-                f"        resolve({{ manually_loaded: true, count: result.data.length }}); "
-                f"      }}); "
-                f"    }}); "
-                f"  }} "
-                f"  return {{ already_loaded: true, count: makeSelect.options.length }}; "
-                f"}}')",
+                "page.evaluate('() => { "
+                "  const makeSelect = document.querySelector('#tractor-make'); "
+                "  if (!makeSelect) return { error: 'Make select not found' }; "
+                "  "
+                "  // If dropdown only has placeholder, trigger AJAX manually "
+                "  if (makeSelect.options.length <= 1) { "
+                "    // Manually call the AJAX endpoint "
+                "    return new Promise((resolve) => { "
+                "      $.getJSON("  # noqa: E501
+                "'https://app.smalink.net/pim/tractor-specs.php?"
+                "tractor_make=tractor-specs-make', function(result) { "
+                "        if (result && result.data) { "
+                "          result.data.forEach(function(data) { "
+                "            $('#tractor-make').append("  # noqa: E501
+                "'<option value=\"' + data.make_slug + '\">' + "
+                "data.make + '</option>'); "
+                "          }); "
+                "        } "
+                "        resolve("  # noqa: E501
+                "{ manually_loaded: true, count: result.data.length }); "
+                "      }); "
+                "    }); "
+                "  } "
+                "  return "  # noqa: E501
+                "{ already_loaded: true, count: makeSelect.options.length }; "
+                "}')",
                 # Wait for make dropdown population
                 "page.wait_for_timeout(2000)",
                 # Select the make from #tractor-make dropdown
@@ -172,10 +182,14 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 f'  const option = options.find(opt => opt.text.includes("{make}")); '
                 f"  if (option) {{ "
                 f"    makeSelect.value = option.value; "
-                f"    makeSelect.dispatchEvent(new Event('change', {{ bubbles: true }})); "
-                f"    return {{ success: true, selected: option.text, value: option.value }}; "
+                f"    makeSelect.dispatchEvent("  # noqa: E501
+                f"new Event('change', {{ bubbles: true }})); "
+                f"    return {{ "  # noqa: E501
+                f"success: true, selected: option.text, value: option.value }}; "
                 f"  }} "
-                f"  return {{ error: 'Make option not found', available: options.map(o => o.text) }}; "
+                f"  return {{ "  # noqa: E501
+                f"error: 'Make option not found', "
+                f"available: options.map(o => o.text) }}; "
                 f"}}')",
                 # Wait for model dropdown to populate via AJAX
                 "page.wait_for_timeout(5000)",
@@ -188,15 +202,24 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 f"  const targetIndex = {model_index + 1}; "
                 f"  if (targetIndex < options.length) {{ "
                 f"    modelSelect.value = options[targetIndex].value; "
-                f"    modelSelect.dispatchEvent(new Event('change', {{ bubbles: true }})); "
-                f"    return {{ success: true, selected: options[targetIndex].text, value: options[targetIndex].value }}; "
+                f"    modelSelect.dispatchEvent("  # noqa: E501
+                f"new Event('change', {{ bubbles: true }})); "
+                f"    return {{ "  # noqa: E501
+                f"success: true, selected: options[targetIndex].text, "
+                f"value: options[targetIndex].value }}; "
                 f"  }} "
-                f"  return {{ error: 'Model index out of range', available: options.length, requested: targetIndex }}; "
+                f"  return {{ "  # noqa: E501
+                f"error: 'Model index out of range', "
+                f"available: options.length, requested: targetIndex }}; "
                 f"}}')",
                 # Wait for tractor details data to load via AJAX
                 "page.wait_for_timeout(5000)",
                 # Wait for the details table to appear
-                "page.wait_for_selector('#tractor-details, .tractor-details-data', timeout=10000)",
+                (  # noqa: E501
+                    "page.wait_for_selector("
+                    "'#tractor-details, .tractor-details-data', "
+                    "timeout=10000)"
+                ),
             ]
         elif make:
             # Actions to select only make from the filter
@@ -290,7 +313,8 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             self.logger.warning(
                 f"No tractor details table found for {make_filter} "
                 f"model {model_index}. "
-                f"Expected table with id 'tractor-details' or class 'tractor-details-data'."
+                "Expected table with id 'tractor-details' or "
+                "class 'tractor-details-data'."
             )
             return
 
@@ -322,7 +346,8 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             item_data["model"] = model_name.strip()
         else:
             # Fallback to using model index
-            item_data["model"] = f"Model_{model_index + 1}"
+            fallback_index = model_index if model_index is not None else 0
+            item_data["model"] = f"Model_{fallback_index + 1}"
 
         # Parse each row for specifications
         for row in rows:
