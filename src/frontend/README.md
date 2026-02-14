@@ -4,11 +4,12 @@ This directory contains the frontend application for OpenAg-DB, built with Vite 
 
 ## ✨ Features
 
-- **Mock Data**: Currently displays hardcoded equipment data for demonstration
+- **Smart API Integration**: Automatically uses real backend API in development and mock data in production (GitHub Pages)
 - **Equipment Browser**: View tractors, combines, and implements
 - **Search & Filter**: Search by name/description and filter by category
 - **Statistics Dashboard**: Shows count of equipment by type
 - **Responsive Design**: Works on desktop and mobile devices
+- **Graceful Fallback**: Falls back to mock data if backend API is unavailable
 
 ## 🚀 Deployment
 
@@ -77,9 +78,13 @@ frontend/
 │   ├── components/       # React components
 │   │   ├── EquipmentCard.tsx
 │   │   └── EquipmentCard.test.tsx
-│   ├── lib/              # Utilities and mock data
+│   ├── lib/              # Utilities and API clients
+│   │   ├── api.ts        # Real backend API client
+│   │   ├── api.test.ts
 │   │   ├── mockApi.ts    # Mock backend responses
-│   │   └── mockApi.test.ts
+│   │   ├── mockApi.test.ts
+│   │   ├── apiAdapter.ts # Smart API switcher (production/dev)
+│   │   └── apiAdapter.test.ts
 │   ├── test/             # Test setup
 │   │   └── setup.ts
 │   ├── App.tsx           # Main app component
@@ -99,7 +104,9 @@ frontend/
 The frontend uses Vitest for unit testing with React Testing Library for component tests.
 
 **Test Coverage:**
+- API Adapter (production/dev mode switching and fallback)
 - Mock API functions (filtering, searching, statistics)
+- Real API client functions
 - EquipmentCard component rendering for all equipment types
 - Type-specific fields (tractor, combine, implement)
 
@@ -113,9 +120,27 @@ npm run test:coverage # Generate coverage report
 **CI/CD:**
 Frontend tests run automatically in GitHub Actions on every push and pull request.
 
-## 🎨 Mock Data
+## 🎨 API Integration
 
-The frontend currently uses mock data defined in `src/lib/mockApi.ts`. This includes:
+The frontend uses a smart API adapter (`src/lib/apiAdapter.ts`) that automatically switches between:
+
+- **Production (GitHub Pages)**: Uses mock data from `mockApi.ts` to avoid connection errors
+- **Development**: Attempts to connect to real backend API at `http://localhost:8000`, falls back to mock data if unavailable
+
+This ensures the deployed frontend always works without errors, while developers can test with the real backend API when available.
+
+### Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+# Backend API URL (optional, defaults to http://localhost:8000)
+VITE_API_URL=http://localhost:8000
+```
+
+### Mock Data
+
+The mock API (`src/lib/mockApi.ts`) includes sample data:
 
 - **5 Tractors**: John Deere, Case IH, New Holland, Kubota models
 - **3 Combines**: John Deere, Case IH, New Holland models
@@ -153,13 +178,13 @@ This prevents modern browsers (Chrome 138+, Edge 144+) from showing a "local net
 
 ## 🚧 Future Enhancements
 
-- [ ] Connect to real FastAPI backend
 - [ ] Add detailed equipment view pages
 - [ ] Implement contribution form
 - [ ] Add equipment comparison feature
 - [ ] Integrate authentication for contributions
 - [ ] Add data visualization charts
 - [ ] Implement advanced filtering options
+- [ ] Add backend API deployment and connect production frontend
 
 ## 📝 Notes
 
