@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { mockApi, Equipment } from './lib/mockApi';
+import { api, Equipment } from './lib/api';
 import { EquipmentCard } from './components/EquipmentCard';
 import './App.css';
 
@@ -22,8 +22,8 @@ function App() {
       setLoading(true);
       try {
         const [equipmentData, statsData] = await Promise.all([
-          mockApi.getAllEquipment(),
-          mockApi.getStats(),
+          api.getAllEquipment(),
+          api.getStats(),
         ]);
         setEquipment(equipmentData);
         setFilteredEquipment(equipmentData);
@@ -161,7 +161,7 @@ function App() {
             OpenAg-DB - Community-driven agricultural equipment database
           </p>
           <p className="note">
-            Note: Currently displaying mock data for demonstration purposes.
+            Connected to Unity Catalog backend for real-time equipment data.
           </p>
           <p>
             <a
