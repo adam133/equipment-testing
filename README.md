@@ -71,17 +71,21 @@ OpenAg-DB supports multiple equipment categories with specialized models:
 ### Backend (Python)
 
 ```bash
-# Clone and install
+# Clone the repository
 git clone https://github.com/adam133/equipment-testing.git
 cd equipment-testing
-uv sync
+
+# Install dependencies and pre-commit hooks (recommended)
+make setup
+# Or: uv sync --all-extras --dev && uv run pre-commit install
 
 # Start the API server
 uv run openagdb-api
 # Visit http://localhost:8000/docs for interactive API documentation
 
 # Run tests
-uv run pytest
+make test
+# Or: uv run pytest
 ```
 
 ### Frontend (React)
@@ -232,11 +236,45 @@ uv add --dev <package-name>
 uv add --optional iceberg <package-name>
 ```
 
+### Development Commands
+
+This project includes a Makefile with common development tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Install dependencies and pre-commit hooks (first-time setup)
+make setup
+
+# Run tests with coverage
+make test
+
+# Run linter
+make lint
+
+# Format code
+make format
+
+# Check formatting without changes
+make format-check
+
+# Run type checker
+make type-check
+
+# Run all pre-commit hooks
+make pre-commit
+
+# Clean build artifacts
+make clean
+```
+
 ### Running Tests
 
 ```bash
 # Run all tests
-uv run pytest
+make test
+# Or: uv run pytest
 
 # Run with coverage
 uv run pytest --cov=core --cov=api --cov-report=term
@@ -250,17 +288,24 @@ uv run pytest tests/test_models.py::test_tractor_creation
 
 ### Code Quality
 
+This project uses pre-commit hooks to automatically check code quality before commits. **Pre-commit hooks are automatically installed when you run `make setup` or `make dev`.**
+
 #### Pre-commit Hooks
 
-Set up pre-commit hooks to automatically check code quality:
-
 ```bash
-# Install pre-commit hooks
-uv run pre-commit install
+# Install pre-commit hooks (if not already installed)
+make install-hooks
+# Or: uv run pre-commit install
 
-# Run hooks manually
-uv run pre-commit run --all-files
+# Run hooks manually on all files
+make pre-commit
+# Or: uv run pre-commit run --all-files
 ```
+
+**Important**: Pre-commit hooks will automatically run before each commit. If they find issues:
+- Auto-fixable issues (formatting, import sorting) will be fixed automatically
+- The commit will be blocked so you can review the fixes
+- Stage the fixes with `git add` and commit again
 
 #### Manual Code Quality Checks
 
