@@ -166,6 +166,9 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         return Request(
             url=url,
             callback=callback,
+            # Don't filter duplicate requests when we have a make filter
+            # since each request is actually unique (different make filter + actions)
+            dont_filter=make is not None,
             meta={
                 "playwright": True,
                 "playwright_include_page": True,

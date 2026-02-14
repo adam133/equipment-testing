@@ -374,6 +374,8 @@ def test_make_playwright_request_without_filter(spider):
     assert request.meta["playwright"] is True
     assert request.meta.get("make_filter") is None
     assert len(request.meta["playwright_page_actions"]) > 0
+    # Requests without make filters should use default duplicate filtering
+    assert request.dont_filter is False
 
 
 def test_make_playwright_request_with_filter(spider):
@@ -390,3 +392,26 @@ def test_make_playwright_request_with_filter(spider):
     # Check that make name is in the actions (for filtering)
     actions_str = str(request.meta["playwright_page_actions"])
     assert make in actions_str
+    # Requests with make filters should not be filtered as duplicates
+    assert request.dont_filter is True
+
+
+def test_multiple_make_requests_not_filtered_as_duplicates(spider):
+    """Test that requests for different makes to the same URL are not filtered."""
+    html = "<html><body></body></html>"
+    url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
+    # Create response without make_filter in meta
+    request = Request(url=url, meta={})
+    response = HtmlResponse(url=url, body=html, encoding="utf-8", request=request)
+
+    results = list(spider.parse(response))
+
+    # Should generate requests for each target make
+    assert len(results) == len(spider.target_makes)
+
+    # All requests should have dont_filter=True to avoid being filtered
+    for result in results:
+        assert isinstance(result, Request)
+        assert result.dont_filter is True
+        # Each request should have a different make_filter
+        assert result.meta.get("make_filter") in spider.target_makes
