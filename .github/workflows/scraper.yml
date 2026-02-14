@@ -33,6 +33,10 @@ jobs:
       run: |
         uv sync --all-extras
 
+    - name: Install Playwright browsers
+      run: |
+        uv run playwright install chromium
+
     - name: Run scrapers
       env:
         # Unity Catalog credentials for DuckDB integration
