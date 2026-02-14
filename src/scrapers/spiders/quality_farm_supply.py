@@ -110,7 +110,11 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             yield self._make_playwright_request(url, callback=self.parse)
 
     def _make_playwright_request(
-        self, url: str, callback: Any, make: str | None = None
+        self,
+        url: str,
+        callback: Any,
+        make: str | None = None,
+        model_index: int | None = None,
     ) -> Any:
         """Create a Scrapy request with Playwright options.
 
@@ -118,6 +122,7 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             url: URL to request
             callback: Callback function for the response
             make: Optional manufacturer name to filter by
+            model_index: Optional model dropdown index to select (0-based)
 
         Returns:
             Scrapy Request with Playwright meta options
@@ -125,8 +130,60 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         # Playwright page actions to execute
         playwright_page_actions = []
 
-        if make:
-            # Actions to select a specific make from the filter
+        if make and model_index is not None:
+            # Actions to select both make and model from filters
+            playwright_page_actions = [
+                # Wait for the page to load
+                "page.wait_for_load_state('networkidle')",
+                # Wait for filter elements to be available
+                (
+                    "page.wait_for_selector("
+                    "'select, .filter-select, [data-filter-make]', "
+                    "timeout=10000)"
+                ),
+                # Select the make first
+                f"page.evaluate('() => {{ "
+                f"  const selects = document.querySelectorAll('select'); "
+                f"  for (const select of selects) {{ "
+                f"    const options = Array.from(select.options); "
+                f'    const option = options.find(opt => opt.text.includes("{make}")); '
+                f"    if (option) {{ "
+                f"      select.value = option.value; "
+                f"      select.dispatchEvent("
+                f"        new Event('change', {{ bubbles: true }})"
+                f"      ); "
+                f"      return true; "
+                f"    }} "
+                f"  }} "
+                f"  return false; "
+                f"}}')",
+                # Wait for model dropdown to populate
+                "page.wait_for_timeout(2000)",
+                # Select the model by index
+                # (skip first option which is usually "Select Model")
+                f"page.evaluate('() => {{ "
+                f"  const selects = document.querySelectorAll('select'); "
+                f"  for (const select of selects) {{ "
+                f"    if (select.options.length > {model_index + 1}) {{ "
+                f"      const options = Array.from(select.options); "
+                f"      // Skip first option (usually placeholder like 'Select Model') "
+                f"      const targetIndex = {model_index + 1}; "
+                f"      if (targetIndex < options.length) {{ "
+                f"        select.selectedIndex = targetIndex; "
+                f"        select.dispatchEvent("
+                f"          new Event('change', {{ bubbles: true }})"
+                f"        ); "
+                f"        return options[targetIndex].text; "
+                f"      }} "
+                f"    }} "
+                f"  }} "
+                f"  return null; "
+                f"}}')",
+                # Wait for model-specific attributes to load
+                "page.wait_for_timeout(2000)",
+            ]
+        elif make:
+            # Actions to select only make from the filter
             playwright_page_actions = [
                 # Wait for the page to load
                 "page.wait_for_load_state('networkidle')",
@@ -166,15 +223,16 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
         return Request(
             url=url,
             callback=callback,
-            # Don't filter duplicate requests when we have a make filter
-            # since each request is actually unique (different make filter + actions)
-            dont_filter=make is not None,
+            # Don't filter duplicate requests when we have a make/model filter
+            # since each request is actually unique (different filter + actions)
+            dont_filter=(make is not None or model_index is not None),
             meta={
                 "playwright": True,
                 "playwright_include_page": True,
                 "playwright_page_actions": playwright_page_actions,
                 "errback": self.errback_close_page,
                 "make_filter": make,
+                "model_index": model_index,
             },
         )
 
@@ -189,12 +247,198 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             await page.close()
         self.logger.error(f"Error processing {failure.request.url}: {failure}")
 
+    def parse_model_data(self, response: Response) -> Iterator[dict[str, Any]]:
+        """Parse model-specific data after make and model selection.
+
+        This method is called after both make and model have been selected
+        from their respective dropdowns. It verifies the DOM structure for
+        model attributes and extracts the data.
+
+        Args:
+            response: HTTP response from the tractor specs page with model selected
+
+        Yields:
+            Tractor specification item for the selected model
+        """
+        make_filter = response.meta.get("make_filter")
+        model_index = response.meta.get("model_index")
+
+        self.logger.info(
+            f"Parsing model data for {make_filter}, model index {model_index}"
+        )
+
+        # Verify DOM structure for model attributes
+        # Look for common attribute containers
+        attributes_container = (
+            response.css(".attributes, .specs, .specifications, .details")
+            or response.css("div[class*='attribute']")
+            or response.css("div[class*='spec']")
+        )
+
+        if not attributes_container:
+            self.logger.warning(
+                f"No attributes container found for {make_filter} "
+                f"model {model_index}. "
+                f"Expected DOM structure with class 'attributes', "
+                f"'specs', or 'specifications'."
+            )
+            # Try to find any data anyway - use the whole response
+            attributes_container = response.css("body")
+
+        # Extract model attributes from the DOM
+        # Try multiple strategies to find the model name and specs
+        for container in attributes_container[:1]:  # Use first container
+            # Strategy 1: Look for model name in heading or title
+            model_name = (
+                container.css("h1::text, h2::text, h3::text, .model-name::text")
+                .get(default="")
+                .strip()
+            )
+
+            # If we found a model name, parse it
+            if model_name:
+                parsed = self._parse_make_model(model_name)
+                if parsed:
+                    make, model = parsed
+
+                    item_data: dict[str, Any] = {
+                        "make": make,
+                        "model": model,
+                        "category": EquipmentCategory.TRACTOR,
+                        "source_url": response.url,
+                    }
+
+                    # Extract specifications from the attributes container
+                    # Look for key-value pairs in various formats
+                    self._extract_specs_from_container(container, item_data)
+
+                    self.logger.info(
+                        f"Successfully extracted model data: {make} {model}"
+                    )
+                    yield self.create_equipment_item(**item_data)
+                    return
+
+            # Strategy 2: Look for structured attribute list
+            attribute_items = container.css(
+                ".attribute-item, .spec-item, dt, tr"
+            )
+            if attribute_items and len(attribute_items) > 2:
+                # Found structured attributes, try to extract model info
+                model_num = (model_index + 1) if model_index is not None else 0
+                item_data = {
+                    "make": make_filter or "Unknown",
+                    "model": f"Model {model_num}",  # Fallback
+                    "category": EquipmentCategory.TRACTOR,
+                    "source_url": response.url,
+                }
+
+                self._extract_specs_from_container(container, item_data)
+
+                self.logger.info(
+                    f"Extracted model data with {len(item_data)} attributes"
+                )
+                yield self.create_equipment_item(**item_data)
+                return
+
+        self.logger.warning(
+            f"No model data found for {make_filter} model {model_index}. "
+            f"DOM structure verification failed."
+        )
+
+    def _extract_specs_from_container(
+        self, container: Any, item_data: dict[str, Any]
+    ) -> None:
+        """Extract specifications from a container element.
+
+        Args:
+            container: Scrapy selector for the container element
+            item_data: Dictionary to populate with extracted specs
+        """
+        # Try different spec extraction patterns
+        # Pattern 1: Definition list (dt/dd pairs)
+        spec_terms = container.css("dt")
+        if spec_terms:
+            for dt in spec_terms:
+                key = dt.css("::text").get(default="").strip().lower()
+                value = dt.xpath("following-sibling::dd[1]//text()").get(default="")
+
+                self._extract_spec_value(key, value, item_data)
+
+        # Pattern 2: Divs with class patterns
+        spec_items = container.css(".spec-item, .attribute-item")
+        for spec_item in spec_items:
+            key = (
+                spec_item.css(".label::text, .key::text")
+                .get(default="")
+                .strip()
+                .lower()
+            )
+            value = spec_item.css(".value::text, .val::text").get(default="")
+
+            self._extract_spec_value(key, value, item_data)
+
+        # Pattern 3: Table rows
+        rows = container.css("tr")
+        for row in rows:
+            cells = row.css("td::text").getall()
+            if len(cells) >= 2:
+                key = cells[0].strip().lower()
+                value = cells[1].strip()
+
+                self._extract_spec_value(key, value, item_data)
+
+    def _extract_spec_value(
+        self, key: str, value: str, item_data: dict[str, Any]
+    ) -> None:
+        """Extract and normalize a specific spec value.
+
+        Args:
+            key: Specification key (normalized to lowercase)
+            value: Raw specification value
+            item_data: Dictionary to populate with extracted value
+        """
+        if not key or not value:
+            return
+
+        value = value.strip()
+
+        # Map common spec keys to our data model
+        if "series" in key:
+            item_data["series"] = value
+        elif "engine" in key and "hp" in key:
+            try:
+                item_data["engine_hp"] = float(
+                    value.replace("HP", "").replace("hp", "").strip()
+                )
+            except ValueError:
+                pass
+        elif "pto" in key and "hp" in key:
+            try:
+                item_data["pto_hp"] = float(
+                    value.replace("HP", "").replace("hp", "").strip()
+                )
+            except ValueError:
+                pass
+        elif "weight" in key:
+            try:
+                item_data["weight_lbs"] = float(
+                    value.replace("lbs", "").replace(",", "").strip()
+                )
+            except ValueError:
+                pass
+        elif "transmission" in key:
+            item_data["transmission_type"] = value.strip().lower()
+        elif "model" in key and "model" not in item_data:
+            # Update model if found in attributes
+            item_data["model"] = value
+
     def parse(self, response: Response) -> Iterator[dict[str, Any] | Any]:
         """Parse the main tractor specs page.
 
         This method handles both initial page load and filtered results.
         If no make filter is active, it will iterate through target makes
-        and make separate requests for each one.
+        and make separate requests for each one. For each make, it will
+        iterate through the first 5 models in the dropdown.
 
         Args:
             response: HTTP response from the tractor specs page
@@ -203,11 +447,15 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
             Tractor specification items or new requests for filtered results
         """
         make_filter = response.meta.get("make_filter")
+        model_index = response.meta.get("model_index")
 
-        self.logger.info(
-            f"Parsing tractor specs from {response.url}"
-            + (f" (filtered by {make_filter})" if make_filter else "")
-        )
+        log_msg = f"Parsing tractor specs from {response.url}"
+        if make_filter:
+            log_msg += f" (filtered by {make_filter}"
+            if model_index is not None:
+                log_msg += f", model index {model_index}"
+            log_msg += ")"
+        self.logger.info(log_msg)
 
         # Note: Playwright page cleanup is handled automatically by scrapy-playwright
         # No manual page.close() needed here
@@ -219,9 +467,14 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
                 f"{len(self.target_makes)} target makes."
             )
             for make in self.target_makes:
-                yield self._make_playwright_request(
-                    response.url, callback=self.parse, make=make
-                )
+                # For each make, iterate through first 5 models
+                for model_idx in range(5):
+                    yield self._make_playwright_request(
+                        response.url,
+                        callback=self.parse_model_data,
+                        make=make,
+                        model_index=model_idx,
+                    )
             return
 
         # Parse the filtered results

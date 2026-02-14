@@ -1,5 +1,7 @@
 """Tests for the Quality Farm Supply spider."""
 
+from typing import Any
+
 import pytest
 from scrapy.http import HtmlResponse, Request
 
@@ -180,7 +182,7 @@ def test_parse_cards(spider, mock_response_cards):
 
 
 def test_parse_without_filter_generates_requests(spider):
-    """Test that parse generates requests for each target make when no filter is set."""
+    """Test that parse generates requests for each target make and model."""
     html = "<html><body></body></html>"
     url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
     # Create response without make_filter in meta
@@ -189,8 +191,9 @@ def test_parse_without_filter_generates_requests(spider):
 
     results = list(spider.parse(response))
 
-    # Should generate requests for each target make instead of parsing items
-    assert len(results) == len(spider.target_makes)
+    # Should generate requests for each target make * 5 models (first 5 models per make)
+    expected_count = len(spider.target_makes) * 5
+    assert len(results) == expected_count
 
     # Check that each result is a Request (not an item dict)
     for result in results:
@@ -406,12 +409,174 @@ def test_multiple_make_requests_not_filtered_as_duplicates(spider):
 
     results = list(spider.parse(response))
 
-    # Should generate requests for each target make
-    assert len(results) == len(spider.target_makes)
+    # Should generate requests for each target make * 5 models
+    expected_count = len(spider.target_makes) * 5
+    assert len(results) == expected_count
 
     # All requests should have dont_filter=True to avoid being filtered
     for result in results:
         assert isinstance(result, Request)
         assert result.dont_filter is True
-        # Each request should have a different make_filter
+        # Each request should have a make_filter and model_index
         assert result.meta.get("make_filter") in spider.target_makes
+        assert result.meta.get("model_index") is not None
+        assert 0 <= result.meta.get("model_index") < 5
+
+
+def test_make_playwright_request_with_model_index(spider):
+    """Test _make_playwright_request with make and model index."""
+    url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
+    make = "John Deere"
+    model_index = 2
+    request = spider._make_playwright_request(
+        url, callback=spider.parse_model_data, make=make, model_index=model_index
+    )
+
+    assert request.url == url
+    assert request.meta["playwright"] is True
+    assert request.meta.get("make_filter") == make
+    assert request.meta.get("model_index") == model_index
+    # Should have actions for both make and model selection
+    assert len(request.meta["playwright_page_actions"]) > 4
+    # Check that make name and model index are in the actions
+    actions_str = str(request.meta["playwright_page_actions"])
+    assert make in actions_str
+    assert str(model_index) in actions_str
+    # Requests with model index should not be filtered as duplicates
+    assert request.dont_filter is True
+
+
+def test_parse_model_data_with_attributes(spider):
+    """Test parsing model-specific data with attributes container."""
+    html = """
+    <html>
+        <body>
+            <div class="specs">
+                <h2>John Deere 5075E</h2>
+                <dl>
+                    <dt>Series</dt>
+                    <dd>5E Series</dd>
+                    <dt>Engine HP</dt>
+                    <dd>75 HP</dd>
+                    <dt>PTO HP</dt>
+                    <dd>65 HP</dd>
+                    <dt>Weight</dt>
+                    <dd>7,700 lbs</dd>
+                    <dt>Transmission</dt>
+                    <dd>PowerShift</dd>
+                </dl>
+            </div>
+        </body>
+    </html>
+    """
+    url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
+    request = Request(url=url, meta={"make_filter": "John Deere", "model_index": 0})
+    response = HtmlResponse(url=url, body=html, encoding="utf-8", request=request)
+
+    results = list(spider.parse_model_data(response))
+
+    assert len(results) == 1
+    assert results[0]["make"] == "John Deere"
+    assert results[0]["model"] == "5075E"
+    assert results[0]["series"] == "5E Series"
+    assert results[0]["engine_hp"] == 75.0
+    assert results[0]["pto_hp"] == 65.0
+    assert results[0]["weight_lbs"] == 7700.0
+    assert results[0]["transmission_type"] == "powershift"
+
+
+def test_parse_model_data_missing_attributes_container(spider):
+    """Test parsing model data when attributes container is missing."""
+    html = """
+    <html>
+        <body>
+            <div>
+                <p>Some other content</p>
+            </div>
+        </body>
+    </html>
+    """
+    url = "https://www.qualityfarmsupply.com/pages/tractor-specs"
+    request = Request(url=url, meta={"make_filter": "Kubota", "model_index": 1})
+    response = HtmlResponse(url=url, body=html, encoding="utf-8", request=request)
+
+    results = list(spider.parse_model_data(response))
+
+    # Should log warning and return no results when no attributes found
+    assert len(results) == 0
+
+
+def test_extract_spec_value_various_formats(spider):
+    """Test _extract_spec_value handles various value formats."""
+    item_data: dict[str, Any] = {}
+
+    # Test HP values with different formats
+    spider._extract_spec_value("engine hp", "75 HP", item_data)
+    assert item_data["engine_hp"] == 75.0
+
+    spider._extract_spec_value("pto hp", "65hp", item_data)
+    assert item_data["pto_hp"] == 65.0
+
+    # Test weight with commas
+    spider._extract_spec_value("weight", "7,700 lbs", item_data)
+    assert item_data["weight_lbs"] == 7700.0
+
+    # Test transmission type
+    spider._extract_spec_value("transmission", "PowerShift", item_data)
+    assert item_data["transmission_type"] == "powershift"
+
+    # Test series
+    spider._extract_spec_value("series", "5E Series", item_data)
+    assert item_data["series"] == "5E Series"
+
+
+def test_extract_specs_from_container_definition_list(spider):
+    """Test _extract_specs_from_container with definition list."""
+    html = """
+    <div class="specs">
+        <dl>
+            <dt>Engine HP</dt>
+            <dd>75 HP</dd>
+            <dt>PTO HP</dt>
+            <dd>65 HP</dd>
+        </dl>
+    </div>
+    """
+    response = HtmlResponse(
+        url="http://test.com", body=html, encoding="utf-8"
+    )
+    container = response.css(".specs")
+
+    item_data: dict[str, Any] = {}
+    spider._extract_specs_from_container(container[0], item_data)
+
+    assert item_data["engine_hp"] == 75.0
+    assert item_data["pto_hp"] == 65.0
+
+
+def test_extract_specs_from_container_table(spider):
+    """Test _extract_specs_from_container with table format."""
+    html = """
+    <div class="specifications">
+        <table>
+            <tr>
+                <td>Engine HP</td>
+                <td>75</td>
+            </tr>
+            <tr>
+                <td>Weight</td>
+                <td>7,700 lbs</td>
+            </tr>
+        </table>
+    </div>
+    """
+    response = HtmlResponse(
+        url="http://test.com", body=html, encoding="utf-8"
+    )
+    container = response.css(".specifications")
+
+    item_data: dict[str, Any] = {}
+    spider._extract_specs_from_container(container[0], item_data)
+
+    assert item_data["engine_hp"] == 75.0
+    assert item_data["weight_lbs"] == 7700.0
