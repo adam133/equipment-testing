@@ -345,20 +345,6 @@ def test_parse_make_model_invalid(spider):
     assert spider._parse_make_model("   ") is None
 
 
-def test_start_requests_uses_playwright(spider):
-    """Test that start_requests generates Playwright-enabled requests."""
-    requests = list(spider.start_requests())
-
-    assert len(requests) > 0
-
-    # Check first request has Playwright enabled
-    first_request = requests[0]
-    assert "playwright" in first_request.meta
-    assert first_request.meta["playwright"] is True
-    assert "playwright_include_page" in first_request.meta
-    assert "playwright_page_actions" in first_request.meta
-
-
 def test_custom_settings_has_playwright(spider):
     """Test that spider has custom settings for Playwright."""
     assert hasattr(spider, "custom_settings")

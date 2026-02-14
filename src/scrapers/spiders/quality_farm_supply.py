@@ -2,11 +2,39 @@
 
 This spider scrapes tractor data from qualityfarmsupply.com/pages/tractor-specs.
 It loops through multiple makes and models and returns data in a structured format.
-This spider uses Playwright to handle dynamic JavaScript-based form navigation.
+This spider prefers JSON API endpoints and falls back to Playwright for HTML.
+
+API Response Mapping:
+---------------------
+The spider includes comprehensive mapping from the Quality Farm Supply API
+response format to our Tractor data model. The API returns specifications in
+a JSON-stringified format with the following mappings:
+
+API Field                    -> Tractor Model Field
+"Years manufactured"         -> year_start, year_end (parsed range)
+"Hp pto"                     -> pto_hp (float)
+"Hp engine"                  -> engine_hp (float)
+"Transmission std"           -> transmission_type (enum: manual, hydrostatic, etc.)
+"Fwd rev standard"           -> forward_gears, reverse_gears (parsed from various formats)
+"Wheelbase inches"           -> wheelbase_inches (float)
+"Hitch lift"                 -> hitch_lift_capacity (float, lbs)
+"Hydraulics flow"            -> hydraulic_flow (float, GPM)
+"Weight"                     -> weight_lbs (float)
+"Engine make", "Fuel type"   -> description (combined into text field)
+
+The mapping function handles:
+- JSON string parsing (spec field is JSON-encoded)
+- Null/missing value handling
+- Unit extraction (removes "HP", "lbs", "in", etc.)
+- Range parsing (e.g., "17-20" takes first value: 17)
+- Transmission code mapping (e.g., "CM" -> "manual")
+- Various gear format patterns ("8F/4R", "12/6", "42", etc.)
 """
 
 from collections.abc import Iterator
+import json
 from typing import Any
+from urllib.parse import urlencode
 
 from scrapy import Request
 from scrapy.http import Response
@@ -28,12 +56,12 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
     - Weight
     - Other specifications
 
-    The page uses JavaScript for form-based filtering, so Playwright is required
-    to interact with the make/model filters and load dynamic content.
+    The site exposes JSON endpoints for make/model/spec data, which we prefer.
+    Playwright is still available for HTML-based fallbacks.
     """
 
     name = "quality_farm_supply"
-    allowed_domains = ["qualityfarmsupply.com"]
+    allowed_domains = ["qualityfarmsupply.com", "app.smalink.net"]
     start_urls = ["https://www.qualityfarmsupply.com/pages/tractor-specs"]
 
     default_category = EquipmentCategory.TRACTOR
@@ -53,22 +81,89 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
     # Example makes to filter for (can be customized)
     target_makes = ["John Deere", "Case IH", "New Holland", "Kubota", "Massey Ferguson"]
 
+    # Prefer API endpoints instead of page parsing
+    use_api_endpoints = True
+
+    api_base_url = "https://app.smalink.net/pim/tractor-specs.php"
+    api_origin = "https://www.qualityfarmsupply.com"
+
+    api_headers = {
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Origin": api_origin,
+        "Referer": f"{api_origin}/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+    }
+
     # Known manufacturer names for parsing
+    # (ordered by length descending to match longest first)
+       # Known manufacturer names for parsing
     # (ordered by length descending to match longest first)
     known_makes = [
         "Massey Ferguson",
-        "John Deere",
-        "Case IH",
-        "New Holland",
-        "Kubota",
-        "Caterpillar",
-        "AGCO",
-        "Fendt",
+        "Massey-Ferguson",
+        "Massey-Harris",
+        "Rumely Oil Pull",
+        "Allis Chalmers",
+        "Fiat Hesston",
+        "Silver King",
+        "Deutz-Allis",
+        "Minneapolis-Moline",
+        "Mpls-Moline",
+        "Agco White",
+        "David Brown",
         "Deutz-Fahr",
-        "Claas",
-        "Valtra",
+        "John Deere",
+        "New Holland",
+        "Agco Allis",
+        "Caterpillar",
+        "Cockshutt",
+        "Cub Cadet",
+        "Hart-Parr",
+        "Case IH",
+        "Case-IH",
+        "Cla-Power",
+        "Field King",
+        "JI Case",
+        "Twin City",
+        "Agcostar",
+        "Ferguson",
+        "Universal",
+        "Versatile",
+        "Big Bud",
         "McCormick",
+        "Mitsubishi",
+        "International",
+        "Kubota",
         "Landini",
+        "Leyland",
+        "Nuffield",
+        "Steiger",
+        "Ferrari",
+        "Goldoni",
+        "Belarus",
+        "Co-Op",
+        "Deutz",
+        "Eagle",
+        "Avery",
+        "Bison",
+        "Claas",
+        "Fendt",
+        "Kioti",
+        "Long",
+        "Oliver",
+        "Same",
+        "Satoh",
+        "White",
+        "Valtra",
+        "Yanmar",
+        "Zetor",
+        "AGCO",
+        "Ford",
+        "CBT",
+        "IMT",
+        "Memo",
     ]
 
     def _parse_make_model(self, title: str) -> tuple[str, str] | None:
@@ -97,17 +192,423 @@ class QualityFarmSupplySpider(BaseEquipmentSpider):
 
         return None
 
-    def start_requests(self) -> Iterator[Any]:
-        """Generate initial requests with Playwright enabled.
+    async def start(self) -> Iterator[Any]:
+        """Generate initial requests.
 
-        This method creates requests that use Playwright to render JavaScript
-        and interact with the page's form elements.
+        This method prefers JSON API endpoints for makes/models/specs. If API
+        scraping is disabled, it falls back to Playwright-based HTML parsing.
 
         Yields:
-            Scrapy requests with Playwright meta options
+            Scrapy requests for API or Playwright workflows
         """
+        if self.use_api_endpoints:
+            params = {"tractor_make": "tractor-specs-make"}
+            yield self._make_api_request(params, callback=self.parse_makes)
+            return
+
         for url in self.start_urls:
             yield self._make_playwright_request(url, callback=self.parse)
+
+    def _make_api_request(
+        self,
+        params: dict[str, str],
+        callback: Any,
+        meta: dict[str, Any] | None = None,
+    ) -> Request:
+        """Create a Scrapy request for the JSON API endpoints."""
+        url = f"{self.api_base_url}?{urlencode(params)}"
+        request_meta = meta.copy() if meta else {}
+        request_meta["api_params"] = params
+        return Request(
+            url=url,
+            callback=callback,
+            dont_filter=True,
+            headers=self.api_headers,
+            meta=request_meta,
+        )
+
+    def _load_json(self, response: Response) -> dict[str, Any]:
+        """Safely load JSON payloads from API responses."""
+        try:
+            return json.loads(response.text)
+        except json.JSONDecodeError:
+            self.logger.warning(
+                "Failed to decode JSON from %s (first 200 chars: %s)",
+                response.url,
+                response.text[:200],
+            )
+            return {}
+
+    def _normalize_make_value(self, value: str) -> str:
+        """Normalize make values for comparison."""
+        return value.strip().lower().replace(" ", "-")
+
+    def _is_target_make(self, make_name: str, make_slug: str | None) -> bool:
+        """Determine whether a make is in the configured target list."""
+        if not self.target_makes:
+            return True
+
+        normalized_name = self._normalize_make_value(make_name)
+        normalized_slug = self._normalize_make_value(make_slug or "")
+
+        for target in self.target_makes:
+            normalized_target = self._normalize_make_value(target)
+            if normalized_target in {normalized_name, normalized_slug}:
+                return True
+
+        return False
+
+    def parse_makes(self, response: Response) -> Iterator[Any]:
+        """Parse the list of makes from the API endpoint."""
+        payload = self._load_json(response)
+        makes = payload.get("data") or payload.get("makes") or []
+
+        if not makes:
+            self.logger.warning(
+                "No makes returned from API (%s)", response.meta.get("api_params")
+            )
+            return
+
+        for make_entry in makes:
+            make_name = (
+                make_entry.get("make")
+                or make_entry.get("name")
+                or make_entry.get("title")
+            )
+            make_slug = make_entry.get("make_slug") or make_entry.get("slug")
+
+            if not make_name:
+                continue
+
+            if not make_slug:
+                make_slug = self._normalize_make_value(make_name)
+
+            if not self._is_target_make(make_name, make_slug):
+                continue
+
+            params = {
+                "tractor_model": "tractor-specs-model",
+                "tractor_make": make_slug,
+            }
+            meta = {"make_name": make_name, "make_slug": make_slug}
+            yield self._make_api_request(params, callback=self.parse_models, meta=meta)
+
+    def parse_models(self, response: Response) -> Iterator[Any]:
+        """Parse model list for a make and enqueue spec requests."""
+        payload = self._load_json(response)
+        models = payload.get("data") or payload.get("models") or []
+
+        make_name = response.meta.get("make_name")
+        make_slug = response.meta.get("make_slug")
+
+        if not models:
+            self.logger.warning(
+                "No models returned for %s (%s)",
+                make_name,
+                response.meta.get("api_params"),
+            )
+            return
+
+        for model_entry in models:
+            model_name = (
+                model_entry.get("model")
+                or model_entry.get("name")
+                or model_entry.get("title")
+            )
+            model_slug = model_entry.get("model_slug") or model_entry.get("slug")
+
+            if not model_name and not model_slug:
+                continue
+
+            if not model_slug:
+                model_slug = model_name
+            if not model_name:
+                model_name = model_slug
+
+            params = {
+                "serial": "tractor-specs-serial",
+                "tractor_make": make_slug,
+                "tractor_model": model_slug,
+            }
+            meta = {
+                "make_name": make_name,
+                "make_slug": make_slug,
+                "model_name": model_name,
+                "model_slug": model_slug,
+            }
+            yield self._make_api_request(params, callback=self.parse_specs, meta=meta)
+
+    def _map_api_response_to_tractor(
+        self, api_data: dict[str, Any], make_name: str, model_name: str, source_url: str
+    ) -> dict[str, Any]:
+        """Map API response attributes to Tractor model fields.
+
+        Args:
+            api_data: The API response data (typically contains 'spec' and 'serial')
+            make_name: Manufacturer name
+            model_name: Model designation
+            source_url: Source URL for reference
+
+        Returns:
+            Dictionary with mapped attributes compatible with Tractor model
+        """
+        # Initialize mapped data with required fields
+        mapped_data: dict[str, Any] = {
+            "make": make_name,
+            "model": model_name,
+            "category": EquipmentCategory.TRACTOR,
+            "source_url": source_url,
+        }
+
+        # Parse the spec field if it's a JSON string
+        spec_data = api_data.get("spec", {})
+        if isinstance(spec_data, str):
+            try:
+                spec_data = json.loads(spec_data)
+            except json.JSONDecodeError:
+                self.logger.warning(
+                    f"Failed to parse spec JSON for {make_name} {model_name}"
+                )
+                spec_data = {}
+
+        if not isinstance(spec_data, dict):
+            self.logger.warning(
+                f"Unexpected spec data type for {make_name} {model_name}: "
+                f"{type(spec_data)}"
+            )
+            return mapped_data
+
+        # Helper function to safely extract numeric values
+        def extract_numeric(value: str | None) -> float | None:
+            if not value or value == "null" or not str(value).strip():
+                return None
+            try:
+                # Remove common units and thousands separators
+                cleaned = (
+                    str(value)
+                    .replace(",", "")
+                    .replace("lbs", "")
+                    .replace("HP", "")
+                    .replace("hp", "")
+                    .replace("in", "")
+                    .replace("gal", "")
+                    .replace("gpm", "")
+                    .replace("psi", "")
+                    .strip()
+                )
+                # Handle ranges by taking the first value
+                if "-" in cleaned and not cleaned.startswith("-"):
+                    cleaned = cleaned.split("-")[0].strip()
+                if "/" in cleaned:
+                    # For formats like "3/77.2" (cylinders/cid), take second value
+                    parts = cleaned.split("/")
+                    if len(parts) == 2:
+                        return float(parts[1])
+                return float(cleaned) if cleaned else None
+            except (ValueError, AttributeError):
+                return None
+
+        # Map year range
+        years_manufactured = spec_data.get("Years manufactured")
+        if years_manufactured and isinstance(years_manufactured, str):
+            years = years_manufactured.split("-")
+            if len(years) >= 1:
+                try:
+                    mapped_data["year_start"] = int(years[0].strip())
+                except (ValueError, AttributeError):
+                    pass
+            if len(years) >= 2:
+                try:
+                    mapped_data["year_end"] = int(years[1].strip())
+                except (ValueError, AttributeError):
+                    pass
+
+        # Map power specifications
+        if hp_pto := extract_numeric(spec_data.get("Hp pto")):
+            mapped_data["pto_hp"] = hp_pto
+
+        if hp_engine := extract_numeric(spec_data.get("Hp engine")):
+            mapped_data["engine_hp"] = hp_engine
+
+        # Map transmission type
+        transmission_std = spec_data.get("Transmission std")
+        if transmission_std and transmission_std != "null":
+            # Map common abbreviations to our enum values
+            trans_map = {
+                "CM": "manual",
+                "CMT": "manual",
+                "MANUAL": "manual",
+                "HYDRO": "hydrostatic",
+                "HYDROSTAT": "hydrostatic",
+                "HYDROSTATIC": "hydrostatic",
+                "PS": "powershift",
+                "POWERSHIFT": "powershift",
+                "CVT": "cvt",
+                "IVT": "ivt",
+            }
+            trans_value = str(transmission_std).strip().upper()
+            mapped_data["transmission_type"] = trans_map.get(
+                trans_value, trans_value.lower()
+            )
+
+        # Map forward/reverse gears
+        fwd_rev_std = spec_data.get("Fwd rev standard")
+        if fwd_rev_std and fwd_rev_std != "null":
+            # Format varies: could be "4/2/6/16", "8F/8R", "42616", etc.
+            fwd_rev_str = str(fwd_rev_std)
+            
+            # Pattern 1: "8F/8R" format
+            if "F" in fwd_rev_str.upper() and "R" in fwd_rev_str.upper():
+                parts = fwd_rev_str.upper().split("/")
+                for part in parts:
+                    if "F" in part:
+                        try:
+                            mapped_data["forward_gears"] = int(part.replace("F", ""))
+                        except ValueError:
+                            pass
+                    elif "R" in part:
+                        try:
+                            mapped_data["reverse_gears"] = int(part.replace("R", ""))
+                        except ValueError:
+                            pass
+            # Pattern 2: "4/2/6/16" or similar slash-separated (take first two)
+            elif "/" in fwd_rev_str:
+                parts = fwd_rev_str.split("/")
+                if len(parts) >= 2:
+                    try:
+                        mapped_data["forward_gears"] = int(parts[0])
+                        mapped_data["reverse_gears"] = int(parts[1])
+                    except ValueError:
+                        pass
+            # Pattern 3: "42616" - likely concatenated, take first 1-2 digits as forward
+            elif fwd_rev_str.isdigit() and len(fwd_rev_str) >= 2:
+                # Common patterns: single digit forward + single digit reverse (e.g., "42")
+                # Or double digit forward + single digit reverse (e.g., "121" = 12F/1R)
+                try:
+                    # Try single digit forward first
+                    if len(fwd_rev_str) <= 3:
+                        mapped_data["forward_gears"] = int(fwd_rev_str[0])
+                        mapped_data["reverse_gears"] = int(fwd_rev_str[1])
+                    # For longer strings, don't parse as it's ambiguous
+                except ValueError:
+                    pass
+
+        # Map hydraulics
+        if hydraulic_flow := extract_numeric(spec_data.get("Hydraulics flow")):
+            mapped_data["hydraulic_flow"] = hydraulic_flow
+
+        if hydraulic_capacity := extract_numeric(spec_data.get("Hydraulics capacity")):
+            # Assuming capacity is in GPM (flow) or could be pressure
+            # The API spec is ambiguous, but we'll map to flow if not already set
+            if "hydraulic_flow" not in mapped_data:
+                mapped_data["hydraulic_flow"] = hydraulic_capacity
+
+        # Map physical specifications
+        if weight := extract_numeric(spec_data.get("Weight")):
+            mapped_data["weight_lbs"] = weight
+
+        if wheelbase := extract_numeric(spec_data.get("Wheelbase inches")):
+            mapped_data["wheelbase_inches"] = wheelbase
+
+        # Map hitch lift capacity
+        if hitch_lift := extract_numeric(spec_data.get("Hitch lift")):
+            mapped_data["hitch_lift_capacity"] = hitch_lift
+
+        # Map PTO speed (stored as note since we don't have a specific field)
+        pto_speed = spec_data.get("Pto speed")
+        if pto_speed and pto_speed != "null":
+            if "description" not in mapped_data:
+                mapped_data["description"] = ""
+            mapped_data["description"] += f"PTO Speed: {pto_speed} RPM. "
+
+        # Add engine details to description
+        engine_make = spec_data.get("Engine make")
+        if engine_make and engine_make != "null":
+            if "description" not in mapped_data:
+                mapped_data["description"] = ""
+            mapped_data["description"] += f"Engine: {engine_make}. "
+
+        engine_type = spec_data.get("Engine fueld type")
+        if engine_type and engine_type != "null":
+            if "description" not in mapped_data:
+                mapped_data["description"] = ""
+            mapped_data["description"] += f"Fuel: {engine_type}. "
+
+        engine_cylinders = spec_data.get("Engine cylinders cid")
+        if engine_cylinders and engine_cylinders != "null":
+            if "description" not in mapped_data:
+                mapped_data["description"] = ""
+            mapped_data["description"] += f"Cylinders/CID: {engine_cylinders}. "
+
+        # Clean up description
+        if "description" in mapped_data:
+            mapped_data["description"] = mapped_data["description"].strip()
+
+        return mapped_data
+
+    def parse_specs(self, response: Response) -> Iterator[dict[str, Any]]:
+        """Parse the model specs from the API endpoint."""
+        payload = self._load_json(response)
+        data = payload.get("data") or payload.get("specs") or payload
+
+        make_name = response.meta.get("make_name") or ""
+        model_name = response.meta.get("model_name") or response.meta.get(
+            "model_slug", ""
+        )
+
+        if not make_name or not model_name:
+            self.logger.warning(
+                "Missing make/model context for %s", response.meta.get("api_params")
+            )
+            return
+
+        # Try to use the structured mapping function if data has 'spec' field
+        if isinstance(data, dict) and "spec" in data:
+            self.logger.info(
+                f"Using structured API mapping for {make_name} {model_name}"
+            )
+            item_data = self._map_api_response_to_tractor(
+                data, make_name, model_name, response.url
+            )
+            yield self.create_equipment_item(**item_data)
+            return
+
+        # Fall back to generic extraction
+        item_data: dict[str, Any] = {
+            "make": make_name,
+            "model": model_name,
+            "category": EquipmentCategory.TRACTOR,
+            "source_url": response.url,
+        }
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, (str, int, float)):
+                    self._extract_spec_value(str(key).lower(), str(value), item_data)
+        elif isinstance(data, list):
+            for entry in data:
+                if not isinstance(entry, dict):
+                    continue
+                key = (
+                    entry.get("attribute")
+                    or entry.get("label")
+                    or entry.get("name")
+                    or entry.get("key")
+                    or entry.get("title")
+                )
+                value = entry.get("value") or entry.get("val") or entry.get("data")
+                if key and value:
+                    self._extract_spec_value(str(key).lower(), str(value), item_data)
+
+        if len(item_data) <= 4:
+            self.logger.info(
+                "Spec payload had limited fields for %s %s (%s)",
+                make_name,
+                model_name,
+                response.meta.get("api_params"),
+            )
+
+        yield self.create_equipment_item(**item_data)
 
     def _make_playwright_request(
         self,
