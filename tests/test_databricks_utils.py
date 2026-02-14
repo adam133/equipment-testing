@@ -61,7 +61,7 @@ class TestTableManager:
         return UnityCatalogConfig(
             token="test_token",
             endpoint="https://test.example.com/api/2.1/unity-catalog",
-            aws_region="us-east-1",
+            aws_region="us-east-2",
             catalog_name="test_catalog",
             schema_name="test_schema",
         )
