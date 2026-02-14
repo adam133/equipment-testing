@@ -151,8 +151,10 @@ def test_batch_delete_errors():
     """Test batch deleting error records."""
     delete_request = {"ids": ["err_001", "err_002"]}
     response = client.request(
-        "DELETE", "/errors/batch", content=json.dumps(delete_request),
-        headers={"Content-Type": "application/json"}
+        "DELETE",
+        "/errors/batch",
+        content=json.dumps(delete_request),
+        headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 204
 
@@ -161,8 +163,9 @@ def test_batch_delete_errors_empty_list():
     """Test that empty ID list is rejected."""
     delete_request = {"ids": []}
     response = client.request(
-        "DELETE", "/errors/batch", content=json.dumps(delete_request),
-        headers={"Content-Type": "application/json"}
+        "DELETE",
+        "/errors/batch",
+        content=json.dumps(delete_request),
+        headers={"Content-Type": "application/json"},
     )
     assert response.status_code == 400
-

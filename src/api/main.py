@@ -48,6 +48,7 @@ def get_unity_catalog_manager() -> Any:
             _table_manager = None
     return _table_manager
 
+
 # Initialize FastAPI app
 app = FastAPI(
     title="OpenAg-DB API",

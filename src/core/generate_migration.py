@@ -139,7 +139,9 @@ def generate_migration_sql() -> str:
             [f"{col} {dtype}" for col, dtype in schema_dict.items()]
         )
 
-        sql_lines.append(f"CREATE TABLE IF NOT EXISTS equip.ag_equipment.{table_name} (")
+        sql_lines.append(
+            f"CREATE TABLE IF NOT EXISTS equip.ag_equipment.{table_name} ("
+        )
         sql_lines.append(f"    {columns}")
         sql_lines.append(")")
         sql_lines.append("USING DELTA;")
@@ -184,7 +186,9 @@ def generate_migration_sql() -> str:
     return "\n".join(sql_lines)
 
 
-def write_migration_file(output_path: str | Path = "migrations/001_create_tables.sql") -> Path:
+def write_migration_file(
+    output_path: str | Path = "migrations/001_create_tables.sql",
+) -> Path:
     """Write migration SQL to a file.
 
     Args:
@@ -227,10 +231,12 @@ def main() -> int:
     except Exception as e:
         logger.error(f"Error generating migration script: {e}")
         import traceback
+
         logger.debug(traceback.format_exc())
         return 1
 
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

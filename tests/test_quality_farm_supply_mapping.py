@@ -19,21 +19,23 @@ class TestAPIMapping:
     def test_map_complete_api_response(self, spider: QualityFarmSupplySpider) -> None:
         """Test mapping a complete API response."""
         api_data = {
-            "spec": json.dumps({
-                "Years manufactured": "1987-1998",
-                "Hp pto": "17",
-                "Hp engine": "20",
-                "Engine make": "SHIBAURA",
-                "Engine fueld type": "DIESEL",
-                "Engine cylinders cid": "3/77.2",
-                "Transmission std": "CM",
-                "Fwd rev standard": "4/2",
-                "Wheelbase inches": "63",
-                "Pto speed": "540",
-                "Hitch lift": "1637",
-                "Hydraulics flow": "9.7",
-                "Weight": "2384",
-            }),
+            "spec": json.dumps(
+                {
+                    "Years manufactured": "1987-1998",
+                    "Hp pto": "17",
+                    "Hp engine": "20",
+                    "Engine make": "SHIBAURA",
+                    "Engine fueld type": "DIESEL",
+                    "Engine cylinders cid": "3/77.2",
+                    "Transmission std": "CM",
+                    "Fwd rev standard": "4/2",
+                    "Wheelbase inches": "63",
+                    "Pto speed": "540",
+                    "Hitch lift": "1637",
+                    "Hydraulics flow": "9.7",
+                    "Weight": "2384",
+                }
+            ),
             "serial": [["UE24511", "1990", "LEFT SIDE OF TRANS HOUSING"]],
         }
 
@@ -72,9 +74,11 @@ class TestAPIMapping:
 
         for trans_code, expected_type in test_cases:
             api_data = {
-                "spec": json.dumps({
-                    "Transmission std": trans_code,
-                })
+                "spec": json.dumps(
+                    {
+                        "Transmission std": trans_code,
+                    }
+                )
             }
             result = spider._map_api_response_to_tractor(
                 api_data, "Test", "Model", "https://example.com"
@@ -84,9 +88,7 @@ class TestAPIMapping:
     def test_map_gear_formats(self, spider: QualityFarmSupplySpider) -> None:
         """Test mapping various gear format patterns."""
         # Pattern: "F/R" format
-        api_data = {
-            "spec": json.dumps({"Fwd rev standard": "8F/4R"})
-        }
+        api_data = {"spec": json.dumps({"Fwd rev standard": "8F/4R"})}
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
         )
@@ -94,9 +96,7 @@ class TestAPIMapping:
         assert result["reverse_gears"] == 4
 
         # Pattern: slash-separated
-        api_data = {
-            "spec": json.dumps({"Fwd rev standard": "12/6"})
-        }
+        api_data = {"spec": json.dumps({"Fwd rev standard": "12/6"})}
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
         )
@@ -104,9 +104,7 @@ class TestAPIMapping:
         assert result["reverse_gears"] == 6
 
         # Pattern: short concatenated (2-3 digits)
-        api_data = {
-            "spec": json.dumps({"Fwd rev standard": "42"})
-        }
+        api_data = {"spec": json.dumps({"Fwd rev standard": "42"})}
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
         )
@@ -116,12 +114,14 @@ class TestAPIMapping:
     def test_map_null_values(self, spider: QualityFarmSupplySpider) -> None:
         """Test that null values are handled correctly."""
         api_data = {
-            "spec": json.dumps({
-                "Hp pto": None,
-                "Hp engine": "null",
-                "Weight": "",
-                "Transmission std": "null",
-            })
+            "spec": json.dumps(
+                {
+                    "Hp pto": None,
+                    "Hp engine": "null",
+                    "Weight": "",
+                    "Transmission std": "null",
+                }
+            )
         }
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
@@ -136,13 +136,15 @@ class TestAPIMapping:
     def test_map_numeric_extraction(self, spider: QualityFarmSupplySpider) -> None:
         """Test extraction of numeric values with various formats."""
         api_data = {
-            "spec": json.dumps({
-                "Hp pto": "25.5 HP",
-                "Hp engine": "30",
-                "Weight": "3,450 lbs",
-                "Wheelbase inches": "72.5 in",
-                "Hitch lift": "2000",
-            })
+            "spec": json.dumps(
+                {
+                    "Hp pto": "25.5 HP",
+                    "Hp engine": "30",
+                    "Weight": "3,450 lbs",
+                    "Wheelbase inches": "72.5 in",
+                    "Hitch lift": "2000",
+                }
+            )
         }
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
@@ -157,9 +159,7 @@ class TestAPIMapping:
     def test_map_year_range(self, spider: QualityFarmSupplySpider) -> None:
         """Test extraction of year ranges."""
         # Normal range
-        api_data = {
-            "spec": json.dumps({"Years manufactured": "2005-2015"})
-        }
+        api_data = {"spec": json.dumps({"Years manufactured": "2005-2015"})}
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
         )
@@ -167,9 +167,7 @@ class TestAPIMapping:
         assert result["year_end"] == 2015
 
         # Single year
-        api_data = {
-            "spec": json.dumps({"Years manufactured": "2020"})
-        }
+        api_data = {"spec": json.dumps({"Years manufactured": "2020"})}
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
         )
@@ -193,10 +191,12 @@ class TestAPIMapping:
     def test_map_range_values(self, spider: QualityFarmSupplySpider) -> None:
         """Test handling of range values (takes first value)."""
         api_data = {
-            "spec": json.dumps({
-                "Hp pto": "17-20",
-                "Weight": "2300-2500",
-            })
+            "spec": json.dumps(
+                {
+                    "Hp pto": "17-20",
+                    "Weight": "2300-2500",
+                }
+            )
         }
         result = spider._map_api_response_to_tractor(
             api_data, "Test", "Model", "https://example.com"
